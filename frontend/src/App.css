@@ -1,0 +1,87 @@
+/* Import font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Common website styles */
+:root {
+  /* Website colors */
+  --primary-color: #2f5bff;
+  --secondary-color: #0f172a;
+  --accent-color: #38bdf8;
+  --background-color: #FFFFFF;
+  --white-color: #FFFFFF;
+  --text-color:#0f172a ;
+  --text-light:  #475569;
+  --border-color: #e2e8f0;
+  --error-color: #EF4444;
+  --success-color: #22C55E;
+
+  /* Font */
+  --main-font: 'Inter', sans-serif;
+}
+
+/* Reset default browser styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+img{
+     max-width: 100%;
+     height: auto;
+}
+
+/* Common body styles */
+body {
+  font-family: var(--main-font);
+  background-color: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+/* Common button styles */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Common link styles */
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+/* Smooth scroll for navbar links */
+html {
+  scroll-behavior: smooth;
+}
+/* Common input styles */
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* Common container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Common primary button */
+.primary-button {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.primary-button:hover {
+  background-color: var(--secondary-color);
+}

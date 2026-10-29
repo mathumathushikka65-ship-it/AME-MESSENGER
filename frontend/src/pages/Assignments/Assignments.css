@@ -1,0 +1,59 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  color: #242f3b;
+  background: #f7f9f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --primary: #17456b;
+  --primary-dark: #103655;
+  --primary-light: #eaedf5;
+  --text-main: #242a3b;
+  --text-muted: #777d85;
+  --border: #e5ece6;
+  --surface: #ffffff;
+  --page-bg: #f7f9f7;
+  --sidebar-width: 250px;
+}
+.Assigner{
+    max-width: 100vh;
+    min-width: 0;
+}
+.assign-top-box{
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    overflow: hidden;
+    margin-bottom: 23px;
+  padding: 31px 36px;
+    min-height: 220px;
+     border-radius: 23px;
+     background:
+    radial-gradient(ellipse at 85% 15%, #a795ff4d 0%, transparent 35%),
+    radial-gradient(ellipse at 55% 110%, #9b7af94a 0%, transparent 42%),
+    linear-gradient(115deg, #3546bc 0%, #5545c6 48%, #8154d8 100%);
+  box-shadow: 0 13px 35px #5146bf22;
+  color: white;
+}
+.ame-progress{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 9px;
+  color: #e8e8ff;
+  font-size: 11px;
+}
+.ame-progress-track {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff32;
+}
