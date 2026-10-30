@@ -39,7 +39,7 @@ export default function IntroductionPage() {
   {/* Left side: All text and buttons */}
   <div className="left-paragraph">
 
-    <span className="top-box">
+    <span className="intro-page">
       <FaGraduationCap />
       For schools and universities
     </span>

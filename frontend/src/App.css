@@ -70,7 +70,7 @@ select {
 }
 
 /* Common primary button */
-.primary-button {
+ .primary-button {
   background-color: var(--primary-color);
   color: var(--white-color);
   border: none;
@@ -84,4 +84,4 @@ select {
 
 .primary-button:hover {
   background-color: var(--secondary-color);
-}
+} 

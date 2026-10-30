@@ -1,89 +1,130 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Signup.css";
 
 function Signup() {
-  const [fullname, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [role, setRole] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const handleSignupSubmit = (e) => {
-        e.preventDefault();
+  const handleSignupSubmit = (e) => {
+    e.preventDefault();
 
-        if (!fullname || !email || !password || !role) {
-            setErrorMessage("Please fill in all fields!");
-            return;
-        }
+    if (!fullName.trim() || !email.trim() || !password || !role) {
+      setErrorMessage("Please fill in all fields.");
+      return;
+    }
 
-        if (password.length < 6) {
-            setErrorMessage("Password must be at least 6 characters!");
-            return;
-        }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
 
-        setErrorMessage("");
-        alert("Signup successful!");
-         navigate("/Home");
-    };
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters.");
+      return;
+    }
 
+    setErrorMessage("");
+    navigate("/Home");
+  };
 
-  return(
- <center>   <div className="Signup-page">
-      <form className="signup-form"  onSubmit={handleSignupSubmit} >
+  return (
+    <div className="signup-page">
+      <header className="signup-header">
+        <Link to="/" className="signup-brand">
+          <span className="signup-logo">A</span>
+          <span>AME MESSENGER</span>
+        </Link>
+        <p>
+          Already have an account? <Link to="/login">Log in</Link>
+        </p>
+      </header>
 
-        <h1>AME MESSENGER</h1>
-        <h2>Create Your Account</h2>
+      <main className="signup-main">
+        <form className="signup-form" onSubmit={handleSignupSubmit} noValidate>
+          <h2>Create your account</h2>
+          <p className="signup-description">
+            Join your learning community today.
+          </p>
 
-        <p className="signup-description"> Join your learning community today. </p>
+          {errorMessage && <p className="signup-error">{errorMessage}</p>}
 
-           {errorMessage && ( <p className="signup-error">{errorMessage}</p> )}
+          <div className="form-field">
+            <label htmlFor="fullName">Full name</label>
+            <input
+              id="fullName"
+              type="text"
+              placeholder="Enter your full name"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
 
-        <label className="label" htmlFor="Name">Full Name</label>
-          <input    type="text"
-                    placeholder="Enter your full name"
-                    value={ fullname}
-                    onChange={(e) => setName(e.target.value)}/>  
+          <div className="form-field">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-          <label htmlFor="Email">Email Address</label>
-          <input    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)} />
+          <div className="form-field">
+            <label htmlFor="password">Password</label>
+            <div className="password-wrapper">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="At least 6 characters"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+          </div>
 
-           <label htmlFor="Password">Password</label>
-           <input   type="password"
-                    placeholder="Create a password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)} />
+          <div className="form-field">
+            <label htmlFor="role">Select your role</label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="">Choose your role</option>
+              <option value="student">School Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="university">University Student</option>
+              <option value="course-center">Course Center</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
 
-           <label htmlFor="Select Your Role">Select Your Role</label>
-                <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="" className="option">Choose your role</option>
-                    <option value="student">School Student</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="university">University Student</option>
-                    <option value="course-center">Course Center</option>
-                    <option value="other">Other</option>
-                </select>
-
-                 <button type="submit" className="signup-button">
-                    Create Account
-                </button>
-
-                <p className="login-link">
-                    Already have an account? <Link to="/Login">Login</Link>
-                </p>
-      </form>
-    </div> </center>
+          <button type="submit" className="signup-button">
+            Create Account
+          </button>
+        </form>
+      </main>
+    </div>
   );
 }
-   
 
 export default Signup;

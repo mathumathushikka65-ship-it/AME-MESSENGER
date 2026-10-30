@@ -1,86 +1,149 @@
 import "../../App.css";
 import "./Login.css";
-import { FaArrowAltCircleRight, FaLock, FaRegAddressCard, FaRegEnvelope } from "react-icons/fa";
-import { Form, Link, useNavigate } from "react-router-dom";
-import React,  { useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { FaGoogle, FaFacebookF } from "react-icons/fa";
 
-export default function Login(){
-   const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
+export default function Login() {
+  const [showPassword, setShowPassword] = useState(false);
 
-    const navigate = useNavigate();
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    alert("Login form submitted!");
+  };
 
-      const handleLoginSubmit = (e) => {
-        e.preventDefault();
-        if (email === "admin@gmail.com" && password === "123456") {
-            setErrorMessage("");
-            alert("Login victory!");
-            navigate("/dashboard"); 
-        } else {
-            setErrorMessage("Wrong Email or Password!");
-        }
-    };
-    return(
-        <div className="login-page">
-                <header className="login-header">
-            <Link to="/" className="login-brand">
-            <span className="logo-mark">A</span>
-            <span className="App-name">AME MESSENGER</span>
-            </Link>
-      <p> New here? <Link to="/Signup">Create an account </Link>  </p>
-        </header>
+  const handleGoogleLogin = () => {
+    alert("Google login requires OAuth configuration.");
+  };
 
-        <div className="main-content">
-            <div className="top-icon">
-                 <FaRegEnvelope/>
-                 <h1>Welcome back</h1>
-                 <p>Sign in to continue to your workspace.</p>
+  const handleFacebookLogin = () => {
+    alert("Facebook login requires OAuth configuration.");
+  };
+
+  return (
+    <div className="login-page">
+      {/* Header */}
+      <header className="login-header">
+        <Link to="/" className="login-brand">
+          <span className="brand-icon">A</span>
+          <span>AME MESSENGER</span>
+        </Link>
+
+        <p>
+          New here? <Link to="/Signup">Create an account</Link>
+        </p>
+      </header>
+
+      {/* Login section */}
+      <main className="login-main">
+        <section className="login-card">
+          <div className="login-illustration">
+            <div className="illustration-circle">
+              <span className="chat-symbol">✉</span>
+              <span className="illustration-star">✦</span>
             </div>
-         <form onSubmit={handleLoginSubmit} className="login-form">
-                    {errorMessage && <p className="error-text" style={{ color: "red" }}>{errorMessage}</p>}
+          </div>
 
-                <div className="input-group">
-                        <FaRegEnvelope className="input-icon" />
-                        <h4>Email address</h4>
-                        <input
-                            type="email"
-                            placeholder="Email Address"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>   
+          <h1>Welcome back</h1>
 
-                     <div className="input-group">
-                        <FaLock className="input-icon" />
-                        <h4>Password</h4>
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-<div className="checkbox-forgotpassword">
+          <p className="login-subtitle">
+            Log in to continue to your workspace.
+          </p>
+
+          {/* Google and Facebook login */}
+          <div className="social-login">
+            <button
+              type="button"
+              className="social-button google-button"
+              onClick={handleGoogleLogin}
+            >
+              <FaGoogle className="google-icon" />
+              <span>Continue with Google</span>
+            </button>
+
+            <button
+              type="button"
+              className="social-button facebook-button"
+              onClick={handleFacebookLogin}
+            >
+              <FaFacebookF className="facebook-icon" />
+              <span>Continue with Facebook</span>
+            </button>
+          </div>
+
+          <div className="login-divider">
+            <span>OR LOGIN WITH EMAIL</span>
+          </div>
+
+          {/* Email and password form */}
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="email">Email address</label>
+
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="you@institution.edu"
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+
+              <div className="password-wrapper">
                 <input
-                type="checkbox" />
-                    <label class="form-check-box" for="exampleCheck1"> Remember Me</label>
-                    <h4>Forgot password?</h4>
-                    </div>
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                />
 
-                    <button type="submit" className="login-btn">
-                        Sign In <FaArrowAltCircleRight/>
-                    </button>
-                </form>
-  </div>
-      <p className="signup-footer">
-          © 2026 AME MESSENGER. All rights reserved.
-        </p>   
-   
-</div>
-        
-        
-    );
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={
+                    showPassword ? "Hide password" : "Show password"
+                  }
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            <div className="login-options">
+              <label className="remember-option">
+                <input type="checkbox" name="remember" />
+                <span>Remember me</span>
+              </label>
+
+              <Link to="/forgot-password">Forgot password?</Link>
+            </div>
+
+            <button type="submit" className="sign-in-button">
+              Login <span aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <div className="login-divider">
+            <span>SECURE ACCESS FOR YOUR INSTITUTION</span>
+          </div>
+
+          <p className="login-footer">
+            Don't have an account?{" "}
+            <Link to="/Signup">Create one</Link>
+          </p>
+        </section>
+
+        <p className="login-bottom-text">
+          © 2026 AME MESSENGER · Connecting your campus
+        </p>
+      </main>
+    </div>
+  );
 }
