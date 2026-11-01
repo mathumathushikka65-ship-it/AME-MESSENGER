@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -10,10 +11,11 @@ function Signup() {
   const [role, setRole] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
 
     if (!fullName.trim() || !email.trim() || !password || !role) {
@@ -31,8 +33,36 @@ function Signup() {
       return;
     }
 
-    setErrorMessage("");
-    navigate("/Home");
+    try {
+      setErrorMessage("");
+      setLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: fullName.trim(),
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Signup failed.");
+      }
+
+      alert("Account created successfully!");
+      navigate("/Login");
+
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to connect to the server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,7 +127,7 @@ function Signup() {
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                {showPassword ? <FaEye /> : <FaEyeSlash />}
               </button>
             </div>
           </div>
@@ -118,8 +148,8 @@ function Signup() {
             </select>
           </div>
 
-          <button type="submit" className="signup-button">
-            Create Account
+          <button type="submit" className="signup-button" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
       </main>
@@ -128,3 +158,4 @@ function Signup() {
 }
 
 export default Signup;
+

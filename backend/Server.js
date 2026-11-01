@@ -1,30 +1,40 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors'); 
-const dotenv = require ('dotenv');
+const dotenv = require('dotenv');
+const cors = require('cors');
 const connectDB = require('./config/db');
+const authRoutes = require('./Routes/auth');
+
+dotenv.config();
 
 const app = express();
 
-dotenv.config();
-connectDB();
 // Middlewares
-const app = express ();
 app.use(cors());
-app.use(express.json()); 
+app.use(express.json());
+app.use('/api/auth', authRoutes);
+console.log("AUTH ROUTE MOUNTED");
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB Database conected!"))
-    .catch((error) => console.error("Database is not connected! ", error));
-
+connectDB();
 
 app.get('/', (req, res) => {
-    res.send("Backend Server is running! ");
+    res.send("AME MESSENGER Backend Server is running!");
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server port ${PORT}-running... `);
+
+app.get('/debug/routes', (req, res) => {
+    res.json({
+        authRoutesLoaded: typeof authRoutes,
+        routes: authRoutes.stack.map(item => ({
+            path: item.route?.path,
+            methods: item.route?.methods
+        }))
+    });
 });
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
 

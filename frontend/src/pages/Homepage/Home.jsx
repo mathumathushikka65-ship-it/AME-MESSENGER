@@ -23,6 +23,10 @@ function Home() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
+  const currentUser = JSON.parse(
+    localStorage.getItem("ameUser") || "null"
+  );
+
   const features = [
     {
       title: "Assignments",
@@ -38,7 +42,7 @@ function Home() {
       icon: <FaFileAlt />,
       color: "blue",
       action: "Create Document",
-      path:"/Document",
+      path: "/Document",
     },
     {
       title: "Messages",
@@ -46,7 +50,7 @@ function Home() {
       icon: <FaComments />,
       color: "green",
       action: "Open Messages",
-      path:"/Messenger"
+      path: "/Messenger"
     },
     {
       title: "Reminders",
@@ -54,7 +58,7 @@ function Home() {
       icon: <FaBell />,
       color: "orange",
       action: " open Reminder",
-      path:"/Remainder",
+      path: "/Reminder",
     },
     {
       title: "Calendar",
@@ -82,7 +86,10 @@ function Home() {
   };
 
   const handleLogout = () => {
-    navigate("/Login");
+    localStorage.removeItem("ameToken");
+    localStorage.removeItem("ameUser");
+
+    navigate("/Login", { replace: true });
   };
 
   return (
@@ -126,7 +133,6 @@ function Home() {
           <Link
             type="button"
             className="sidebar-link"
-
           >
             <FaFileAlt />
             <span>Documents</span>
@@ -135,16 +141,15 @@ function Home() {
           <Link
             type="button"
             className="sidebar-link"
-
           >
             <FaComments />
             <span>Messages</span>
           </Link>
 
-          <Link to="/Remainder"
+          <Link
+            to="/Reminder"
             className="sidebar-link"
-              onClick={() => setMenuOpen(false)}
-
+            onClick={() => setMenuOpen(false)}
           >
             <FaBell />
             <span>Reminders</span>
@@ -225,10 +230,22 @@ function Home() {
           </div>
 
           <div className="header-profile">
-            <div className="profile-avatar">A</div>
+            <Link to="/Setting" className="profile-avatar">
+              {currentUser?.username?.charAt(0).toUpperCase() || "A"}
+            </Link>
+
             <div className="profile-details">
-              <strong>Welcome back!</strong>
-              <span>Your AME workspace</span>
+              <strong>
+                Welcome, {currentUser?.username || "User"}!
+              </strong>
+
+              <span>
+                {currentUser?.email || "Your AME workspace"}
+              </span>
+
+              <span>
+                {currentUser?.role || "Member"}
+              </span>
             </div>
           </div>
         </header>

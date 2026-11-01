@@ -1,15 +1,55 @@
+
 import "../../App.css";
 import "./Login.css";
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { FaGoogle, FaFacebookF } from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import { FaGoogle, FaFacebookF, FaEyeSlash, FaEye } from "react-icons/fa";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event) => {
+  const navigate = useNavigate();
+  const currentUser = JSON.parse(
+  localStorage.getItem("ameUser") || "null"
+);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    alert("Login form submitted!");
+    setErrorMessage("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      localStorage.setItem("ameToken", data.token);
+      localStorage.setItem("ameUser", JSON.stringify(data.user));
+
+      navigate("/Home");
+
+    } catch (error) {
+      setErrorMessage(error.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -22,7 +62,6 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Header */}
       <header className="login-header">
         <Link to="/" className="login-brand">
           <span className="brand-icon">A</span>
@@ -34,7 +73,6 @@ export default function Login() {
         </p>
       </header>
 
-      {/* Login section */}
       <main className="login-main">
         <section className="login-card">
           <div className="login-illustration">
@@ -50,7 +88,6 @@ export default function Login() {
             Log in to continue to your workspace.
           </p>
 
-          {/* Google and Facebook login */}
           <div className="social-login">
             <button
               type="button"
@@ -75,17 +112,17 @@ export default function Login() {
             <span>OR LOGIN WITH EMAIL</span>
           </div>
 
-          {/* Email and password form */}
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email address</label>
-
               <input
                 type="email"
                 id="email"
                 name="email"
                 placeholder="you@institution.edu"
                 autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 required
               />
             </div>
@@ -100,6 +137,8 @@ export default function Login() {
                   name="password"
                   placeholder="Enter your password"
                   autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   required
                 />
 
@@ -107,14 +146,16 @@ export default function Login() {
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={
-                    showPassword ? "Hide password" : "Show password"
-                  }
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? <FaEye /> : <FaEyeSlash />}
                 </button>
               </div>
             </div>
+
+            {errorMessage && (
+              <p className="login-error">{errorMessage}</p>
+            )}
 
             <div className="login-options">
               <label className="remember-option">
@@ -125,8 +166,13 @@ export default function Login() {
               <Link to="/forgot-password">Forgot password?</Link>
             </div>
 
-            <button type="submit" className="sign-in-button">
-              Login <span aria-hidden="true">→</span>
+            <button
+              type="submit"
+              className="sign-in-button"
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Login"}
+              {!loading && <span aria-hidden="true">→</span>}
             </button>
           </form>
 

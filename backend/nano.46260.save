@@ -1,0 +1,4 @@
+MONGO_URI=mongodb+srv://mathumathushikka65_db_user:<db_password>@ame-messenger.vs4flus.mongodb.net/
+PORT=5000
+
+

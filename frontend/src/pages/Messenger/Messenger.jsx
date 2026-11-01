@@ -13,11 +13,14 @@ import {
   FaSmile,
   FaArrowLeft,
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 function Messenger() {
   const [activeTab, setActiveTab] = useState("Personal");
   const [activeChat, setActiveChat] = useState(1);
   const [message, setMessage] = useState("");
+
+  const navigate = useNavigate();
 
   const [chats, setChats] = useState([
     {
@@ -230,8 +233,8 @@ function Messenger() {
         <div className="messenger-sidebar-heading">
           <h3>Messages</h3>
           <button
-            className="new-chat-btn"
-            onClick={createChat}
+           className="new-chat-btn"
+             onClick={() => navigate("/contact")}
             title="Create new chat"
           >
             <FaPlus />
