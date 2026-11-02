@@ -18,7 +18,7 @@ import {
   FaTimes,
   FaGraduationCap,
   FaBook,
-  FaClipboardCheck,
+  FaClipboardCheck
 } from "react-icons/fa";
 import "./Assignment.css";
 

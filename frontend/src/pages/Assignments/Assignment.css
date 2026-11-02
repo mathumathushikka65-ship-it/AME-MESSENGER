@@ -1,7 +1,5 @@
 
-/* =====================================
-   AME MESSENGER - ASSIGNMENTS PAGE
-===================================== */
+ 
 
 * {
   box-sizing: border-box;
@@ -31,9 +29,7 @@
   cursor: not-allowed;
 }
 
-/* =====================================
-   SIDEBAR
-===================================== */
+/*SIDEBAR*/
 
 .assignments-sidebar {
   width: 255px;
@@ -146,9 +142,7 @@
   font-size: 11px;
 }
 
-/* =====================================
-   MAIN CONTENT
-===================================== */
+/*MAIN CONTENT*/
 
 .assignments-main {
   flex: 1;
@@ -192,9 +186,7 @@
   flex-wrap: wrap;
 }
 
-/* =====================================
-   ROLE SWITCH
-===================================== */
+/*ROLE SWITCH*/
 
 .role-switch {
   display: flex;
@@ -222,9 +214,7 @@
   box-shadow: 0 2px 7px rgba(20, 40, 90, 0.09);
 }
 
-/* =====================================
-   BUTTONS
-===================================== */
+/*BUTTONS*/
 
 .primary-btn,
 .secondary-btn {
@@ -263,9 +253,7 @@
   background: #f3f7ff;
 }
 
-/* =====================================
-   WELCOME BANNER
-===================================== */
+/*WELCOME BANNER*/
 
 .assignment-welcome {
   display: flex;
@@ -320,9 +308,7 @@
   transform: rotate(-8deg);
 }
 
-/* =====================================
-   STATISTICS
-===================================== */
+/*STATISTICS*/
 
 .assignment-stats {
   display: grid;
@@ -387,9 +373,7 @@
   margin: 0;
 }
 
-/* =====================================
-   ASSIGNMENT SECTION
-===================================== */
+/*ASSIGNMENT SECTION*/
 
 .assignment-section {
   padding: 25px;
@@ -420,9 +404,7 @@
   margin: 0;
 }
 
-/* =====================================
-   SEARCH AND FILTER
-===================================== */
+/*SEARCH AND FILTER*/
 
 .assignment-filters {
   display: flex;
@@ -478,9 +460,7 @@
   border-color: #2563ff;
 }
 
-/* =====================================
-   ASSIGNMENT GRID AND CARDS
-===================================== */
+/*ASSIGNMENT GRID AND CARDS*/
 
 .assignment-grid {
   display: grid;
@@ -603,9 +583,7 @@
   background: #fff0f0;
 }
 
-/* =====================================
-   STATUS BADGES
-===================================== */
+/*STATUS BADGES*/
 
 .status-badge {
   display: inline-flex;
@@ -638,9 +616,7 @@
   color: #d33b47;
 }
 
-/* =====================================
-   SUBMISSION INFORMATION
-===================================== */
+/*SUBMISSION INFORMATION*/
 
 .submission-count {
   display: flex;
@@ -729,9 +705,7 @@
   margin: 5px 0 0;
 }
 
-/* =====================================
-   EMPTY STATE
-===================================== */
+/*EMPTY STATE*/
 
 .empty-state {
   text-align: center;
@@ -756,9 +730,7 @@
   margin: 0;
 }
 
-/* =====================================
-   MODAL
-===================================== */
+/*MODAL*/
 
 .modal-overlay {
   position: fixed;
@@ -835,9 +807,7 @@
   color: #d33b47;
 }
 
-/* =====================================
-   FORM
-===================================== */
+/*FORM */
 
 .assignment-form {
   display: flex;
@@ -909,9 +879,7 @@
   border-top: 1px solid #edf1f6;
 }
 
-/* =====================================
-   DETAILS MODAL
-===================================== */
+/* DETAILS MODAL*/
 
 .details-content {
   color: #66758c;
@@ -973,9 +941,7 @@
   overflow-wrap: anywhere;
 }
 
-/* =====================================
-   TOAST MESSAGE
-===================================== */
+/*TOAST MESSAGE*/
 
 .toast-message {
   position: fixed;
@@ -999,9 +965,7 @@
   color: #61dda0;
 }
 
-/* =====================================
-   RESPONSIVE DESIGN
-===================================== */
+/*RESPONSIVE DESIGN*/
 
 @media (max-width: 1100px) {
   .assignment-stats {

@@ -4,6 +4,7 @@ import "./Login.css";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaGoogle, FaFacebookF, FaEyeSlash, FaEye } from "react-icons/fa";
+import API_URL from "../../services/api";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,9 +14,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const currentUser = JSON.parse(
-  localStorage.getItem("ameUser") || "null"
-);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -23,7 +21,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+        const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
