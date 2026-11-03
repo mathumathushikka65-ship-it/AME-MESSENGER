@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema({
 phone: {
     type: String,
     default: ""
+},
+isOnline: {
+    type: Boolean,
+    default: false
+},
+lastSeen: {
+    type: Date,
+    default: null
 }
 }, { timestamps: true });
 

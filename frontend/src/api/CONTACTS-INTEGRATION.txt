@@ -1,0 +1,29 @@
+CONTACT PAGE API EXAMPLES
+
+import { api } from './ameApi';
+
+Load saved contacts:
+const { data } = await api.get('/contacts');
+
+Search AME users:
+const { data } = await api.get('/contacts/search', { params: { q: searchText } });
+
+Save a registered user:
+await api.post('/contacts', {
+  contactUserId: selectedUser._id,
+  nickname: nickname,
+  collection: 'Teachers'
+});
+
+Edit:
+await api.patch(`/contacts/${contactId}`, { collection: 'Teachers', isHidden: false });
+
+Delete:
+await api.delete(`/contacts/${contactId}`);
+
+Collections:
+const { data } = await api.get('/contacts/collections/list');
+
+NOTE: A phone number alone cannot create an AME chat. The person must have an AME account.
+The contact form in your current Contact.jsx stores only browser state. Replace that local-state
+save/search logic with these API calls for persistent MongoDB contacts.

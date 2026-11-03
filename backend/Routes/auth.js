@@ -100,6 +100,9 @@ router.post('/login', async (req, res) => {
             email: email.trim().toLowerCase()
         });
 
+        console.log("Login email received:", email.trim().toLowerCase());
+        console.log("User found:", !!user);
+
         if (!user) {
             return res.status(401).json({
                 message: 'Invalid email or password'

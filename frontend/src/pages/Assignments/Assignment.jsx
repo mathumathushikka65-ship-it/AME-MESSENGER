@@ -1,5 +1,6 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import API_URL from "../../services/api";
 import {
   FaHome,
   FaTasks,
@@ -22,59 +23,6 @@ import {
 } from "react-icons/fa";
 import "./Assignment.css";
 
-const initialAssignments = [
-  {
-    id: 1,
-    title: "React Frontend Development",
-    subject: "Web Development",
-    description:
-      "Create a responsive React application using components, props and state.",
-    dueDate: "2026-11-05",
-    points: 100,
-    submissions: [
-      {
-        id: 101,
-        student: "Kavitha",
-        file: "react-project.pdf",
-        notes: "Completed my React assignment.",
-        marks: "",
-        feedback: "",
-        status: "Submitted",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Database Management System",
-    subject: "Database",
-    description:
-      "Prepare a database design with ER diagram and SQL queries.",
-    dueDate: "2026-11-10",
-    points: 50,
-    submissions: [],
-  },
-  {
-    id: 3,
-    title: "JavaScript Programming",
-    subject: "Programming",
-    description:
-      "Complete the JavaScript exercises and submit your source code.",
-    dueDate: "2026-10-25",
-    points: 75,
-    submissions: [
-      {
-        id: 102,
-        student: "Kavitha",
-        file: "javascript-task.zip",
-        notes: "All exercises are completed.",
-        marks: 68,
-        feedback: "Good work. Improve code organisation.",
-        status: "Reviewed",
-      },
-    ],
-  },
-];
-
 const today = new Date().toISOString().split("T")[0];
 
 function formatDate(date) {
@@ -87,9 +35,42 @@ function formatDate(date) {
   });
 }
 
+function mapAssignment(item) {
+  return {
+    id: item._id,
+    title: item.title,
+    subject: item.subject,
+    description: item.description || "",
+    dueDate: item.dueDate ? item.dueDate.substring(0, 10) : "",
+    priority: item.priority || "Medium",
+    status: item.status || "Pending",
+    points: item.totalMarks || 100,
+    submissions: (item.submissions || []).map((submission) => ({
+      id: submission._id,
+      studentId:
+        typeof submission.student === "object"
+          ? submission.student?._id
+          : submission.student,
+      student:
+        typeof submission.student === "object"
+          ? submission.student?.username || submission.student?.email
+          : "Student",
+      file: submission.fileName || "Assignment file",
+      fileUrl: submission.fileUrl,
+      marks: submission.marks ?? "",
+      feedback: submission.feedback || "",
+      status: submission.reviewStatus || "Submitted",
+    })),
+  };
+}
+
 export default function Assignment() {
-  const [role, setRole] = useState("Student");
-  const [assignments, setAssignments] = useState(initialAssignments);
+   const [currentUser, setCurrentUser] = useState(null);
+   const [role, setRole] = useState("");
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [modal, setModal] = useState("");
@@ -119,6 +100,42 @@ export default function Assignment() {
     window.setTimeout(() => setToast(""), 2500);
   };
 
+  // GET ASSIGNMENTS FROM BACKEND
+  const fetchAssignments = async () => {
+    const token = localStorage.getItem("ameToken");
+
+    if (!token) {
+      showToast("Please login to view assignments.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/assignments`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load assignments.");
+      }
+
+      setAssignments((data.assignments || []).map(mapAssignment));
+    } catch (error) {
+      showToast(error.message || "Unable to load assignments.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignments();
+  }, []);
+
   const studentSubmission = (assignment) =>
     assignment.submissions.find(
       (submission) => submission.student === "Kavitha"
@@ -129,9 +146,11 @@ export default function Assignment() {
 
     if (submission) return submission.status;
     if (assignment.dueDate < today) return "Overdue";
+
     return "Pending";
   };
 
+  // SEARCH AND FILTER
   const filteredAssignments = useMemo(() => {
     return assignments.filter((assignment) => {
       const searchMatch =
@@ -156,6 +175,7 @@ export default function Assignment() {
     });
   }, [assignments, search, filter, role]);
 
+  // STATISTICS
   const totalAssignments = assignments.length;
 
   const pendingCount = assignments.filter(
@@ -175,6 +195,7 @@ export default function Assignment() {
     0
   );
 
+  // CREATE ASSIGNMENT MODAL
   const openCreateModal = () => {
     setForm({
       title: "",
@@ -183,12 +204,15 @@ export default function Assignment() {
       dueDate: "",
       points: 100,
     });
+
     setSelected(null);
     setModal("create");
   };
 
+  // EDIT ASSIGNMENT MODAL
   const openEditModal = (assignment) => {
     setSelected(assignment);
+
     setForm({
       title: assignment.title,
       subject: assignment.subject,
@@ -196,10 +220,12 @@ export default function Assignment() {
       dueDate: assignment.dueDate,
       points: assignment.points,
     });
+
     setModal("edit");
   };
 
-  const saveAssignment = (event) => {
+  // CREATE AND UPDATE ASSIGNMENT API
+  const saveAssignment = async (event) => {
     event.preventDefault();
 
     if (
@@ -211,44 +237,104 @@ export default function Assignment() {
       return;
     }
 
-    if (modal === "edit" && selected) {
-      setAssignments((previous) =>
-        previous.map((assignment) =>
-          assignment.id === selected.id
-            ? { ...assignment, ...form, points: Number(form.points) }
-            : assignment
-        )
-      );
-      showToast("Assignment updated successfully!");
-    } else {
-      const newAssignment = {
-        ...form,
-        id: Date.now(),
-        points: Number(form.points),
-        submissions: [],
-      };
+    const token = localStorage.getItem("ameToken");
 
-      setAssignments((previous) => [newAssignment, ...previous]);
-      showToast("New assignment created successfully!");
+    if (!token) {
+      showToast("Please login again.");
+      return;
     }
 
-    setModal("");
+    const assignmentData = {
+      title: form.title.trim(),
+      subject: form.subject.trim(),
+      description: form.description,
+      dueDate: form.dueDate,
+      priority: selected?.priority || "Medium",
+      status: selected?.status || "Pending",
+    };
+
+    setSaving(true);
+
+    try {
+      const isEditing = modal === "edit";
+
+      const response = await fetch(
+        isEditing
+          ? `${API_URL}/assignments/${selected.id}`
+          : `${API_URL}/assignments`,
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(assignmentData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to save assignment.");
+      }
+
+      await fetchAssignments();
+
+      setModal("");
+      setSelected(null);
+
+      showToast(
+        isEditing
+          ? "Assignment updated successfully!"
+          : "Assignment created successfully!"
+      );
+    } catch (error) {
+      showToast(error.message || "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteAssignment = (id) => {
+  // DELETE ASSIGNMENT API
+  const deleteAssignment = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this assignment?"
     );
 
     if (!confirmed) return;
 
-    setAssignments((previous) =>
-      previous.filter((assignment) => assignment.id !== id)
-    );
+    const token = localStorage.getItem("ameToken");
 
-    showToast("Assignment deleted.");
+    if (!token) {
+      showToast("Please login again.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/assignments/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete assignment.");
+      }
+
+      setAssignments((previous) =>
+        previous.filter((assignment) => assignment.id !== id)
+      );
+
+      showToast("Assignment deleted successfully.");
+    } catch (error) {
+      showToast(error.message || "Unable to delete assignment.");
+    }
   };
 
+  // STUDENT SUBMISSION - FRONTEND ONLY FOR NOW
   const openSubmitModal = (assignment) => {
     setSelected(assignment);
     setSubmissionForm({ file: null, notes: "" });
@@ -290,9 +376,10 @@ export default function Assignment() {
     );
 
     setModal("");
-    showToast("Assignment submitted successfully!");
+    showToast("Submission saved in this session only.");
   };
 
+  // TEACHER REVIEW - FRONTEND ONLY FOR NOW
   const openReviewModal = (assignment, submission) => {
     setSelected({
       assignmentId: assignment.id,
@@ -344,7 +431,7 @@ export default function Assignment() {
     );
 
     setModal("");
-    showToast("Review saved successfully!");
+    showToast("Review saved in this session only.");
   };
 
   const openDetails = (assignment) => {
@@ -359,6 +446,7 @@ export default function Assignment() {
 
   return (
     <div className="assignments-page">
+
       {/* SIDEBAR */}
       <aside className="assignments-sidebar">
         <div className="sidebar-logo">
@@ -373,7 +461,7 @@ export default function Assignment() {
             <FaHome /> Dashboard
           </a>
 
-          <a href="/Assignments" className="active">
+          <a href="/Assignment" className="active">
             <FaTasks /> Assignments
           </a>
 
@@ -385,7 +473,7 @@ export default function Assignment() {
             <FaFileAlt /> Documents
           </a>
 
-          <a href="/Reminders">
+          <a href="/Reminder">
             <FaBell /> Reminders
           </a>
 
@@ -407,6 +495,7 @@ export default function Assignment() {
 
       {/* MAIN CONTENT */}
       <main className="assignments-main">
+
         {/* HEADER */}
         <header className="assignments-header">
           <div>
@@ -452,11 +541,13 @@ export default function Assignment() {
             <span className="welcome-tag">
               <FaGraduationCap /> ACADEMIC WORKSPACE
             </span>
+
             <h2>
               {role === "Student"
                 ? "Stay organised. Submit on time."
                 : "Manage assignments with ease."}
             </h2>
+
             <p>
               {role === "Student"
                 ? "View your tasks, complete your work and track your progress."
@@ -488,8 +579,12 @@ export default function Assignment() {
             <div>
               <p>{role === "Student" ? "Pending" : "Awaiting Submission"}</p>
               <h2>
-                {role === "Student" ? pendingCount : totalAssignments -
-                  assignments.filter((item) => item.submissions.length > 0).length}
+                {role === "Student"
+                  ? pendingCount
+                  : totalAssignments -
+                    assignments.filter(
+                      (item) => item.submissions.length > 0
+                    ).length}
               </h2>
             </div>
           </div>
@@ -560,134 +655,154 @@ export default function Assignment() {
             </select>
           </div>
 
+          {/* LOADING */}
+          {loading && (
+            <div className="empty-state">
+              <h3>Loading assignments...</h3>
+              <p>Please wait while we load your assignments.</p>
+            </div>
+          )}
+
           {/* ASSIGNMENT CARDS */}
-          <div className="assignment-grid">
-            {filteredAssignments.map((assignment) => {
-              const submission = studentSubmission(assignment);
-              const status =
-                role === "Student"
-                  ? getStudentStatus(assignment)
-                  : assignment.submissions.length > 0
-                    ? "Submitted"
-                    : "Pending";
+          {!loading && (
+            <div className="assignment-grid">
+              {filteredAssignments.map((assignment) => {
+                const submission = studentSubmission(assignment);
 
-              return (
-                <article className="assignment-card" key={assignment.id}>
-                  <div className="assignment-card-top">
-                    <span className="subject-label">
-                      <FaBook /> {assignment.subject}
-                    </span>
+                const status =
+                  role === "Student"
+                    ? getStudentStatus(assignment)
+                    : assignment.submissions.length > 0
+                      ? "Submitted"
+                      : "Pending";
 
-                    <span
-                      className={`status-badge status-${status.toLowerCase()}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
+                return (
+                  <article className="assignment-card" key={assignment.id}>
+                    <div className="assignment-card-top">
+                      <span className="subject-label">
+                        <FaBook /> {assignment.subject}
+                      </span>
 
-                  <h3>{assignment.title}</h3>
-                  <p className="assignment-description">
-                    {assignment.description}
-                  </p>
-
-                  <div className="assignment-meta">
-                    <span>
-                      <FaCalendarAlt /> Due: {formatDate(assignment.dueDate)}
-                    </span>
-                    <span>{assignment.points} Marks</span>
-                  </div>
-
-                  {role === "Student" && submission?.status === "Reviewed" && (
-                    <div className="review-result">
-                      <strong>
-                        Marks: {submission.marks}/{assignment.points}
-                      </strong>
-                      <p>{submission.feedback || "No feedback provided."}</p>
-                    </div>
-                  )}
-
-                  {role === "Teacher" && (
-                    <div className="submission-count">
-                      <FaUsers /> {assignment.submissions.length} submission(s)
-                    </div>
-                  )}
-
-                  <div className="assignment-card-actions">
-                    <button
-                      className="secondary-btn"
-                      onClick={() => openDetails(assignment)}
-                    >
-                      <FaEye /> View
-                    </button>
-
-                    {role === "Student" && (
-                      <button
-                        className="primary-btn"
-                        onClick={() => openSubmitModal(assignment)}
-                        disabled={status === "Overdue" || status === "Reviewed"}
+                      <span
+                        className={`status-badge status-${status.toLowerCase()}`}
                       >
-                        <FaUpload />
-                        {submission ? "Resubmit" : "Submit"}
-                      </button>
-                    )}
+                        {status}
+                      </span>
+                    </div>
+
+                    <h3>{assignment.title}</h3>
+
+                    <p className="assignment-description">
+                      {assignment.description}
+                    </p>
+
+                    <div className="assignment-meta">
+                      <span>
+                        <FaCalendarAlt /> Due: {formatDate(assignment.dueDate)}
+                      </span>
+                      <span>{assignment.points} Marks</span>
+                    </div>
+
+                    {role === "Student" &&
+                      submission?.status === "Reviewed" && (
+                        <div className="review-result">
+                          <strong>
+                            Marks: {submission.marks}/{assignment.points}
+                          </strong>
+                          <p>
+                            {submission.feedback || "No feedback provided."}
+                          </p>
+                        </div>
+                      )}
 
                     {role === "Teacher" && (
-                      <>
-                        <button
-                          className="icon-btn edit-btn"
-                          title="Edit assignment"
-                          onClick={() => openEditModal(assignment)}
-                        >
-                          <FaEdit />
-                        </button>
-
-                        <button
-                          className="icon-btn delete-btn"
-                          title="Delete assignment"
-                          onClick={() => deleteAssignment(assignment.id)}
-                        >
-                          <FaTrash />
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* TEACHER SUBMISSIONS */}
-                  {role === "Teacher" &&
-                    assignment.submissions.length > 0 && (
-                      <div className="submission-list">
-                        <h4>Student Submissions</h4>
-
-                        {assignment.submissions.map((item) => (
-                          <div className="submission-item" key={item.id}>
-                            <div>
-                              <strong>{item.student}</strong>
-                              <small>{item.file}</small>
-                              <span
-                                className={`status-badge status-${item.status.toLowerCase()}`}
-                              >
-                                {item.status}
-                              </span>
-                            </div>
-
-                            <button
-                              className="review-btn"
-                              onClick={() => openReviewModal(assignment, item)}
-                            >
-                              {item.status === "Reviewed"
-                                ? "Edit Review"
-                                : "Review"}
-                            </button>
-                          </div>
-                        ))}
+                      <div className="submission-count">
+                        <FaUsers /> {assignment.submissions.length} submission(s)
                       </div>
                     )}
-                </article>
-              );
-            })}
-          </div>
 
-          {filteredAssignments.length === 0 && (
+                    <div className="assignment-card-actions">
+                      <button
+                        className="secondary-btn"
+                        onClick={() => openDetails(assignment)}
+                      >
+                        <FaEye /> View
+                      </button>
+
+                      {role === "Student" && (
+                        <button
+                          className="primary-btn"
+                          onClick={() => openSubmitModal(assignment)}
+                          disabled={
+                            status === "Overdue" || status === "Reviewed"
+                          }
+                        >
+                          <FaUpload />
+                          {submission ? "Resubmit" : "Submit"}
+                        </button>
+                      )}
+
+                      {role === "Teacher" && (
+                        <>
+                          <button
+                            className="icon-btn edit-btn"
+                            title="Edit assignment"
+                            onClick={() => openEditModal(assignment)}
+                          >
+                            <FaEdit />
+                          </button>
+
+                          <button
+                            className="icon-btn delete-btn"
+                            title="Delete assignment"
+                            onClick={() => deleteAssignment(assignment.id)}
+                          >
+                            <FaTrash />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* TEACHER SUBMISSIONS */}
+                    {role === "Teacher" &&
+                      assignment.submissions.length > 0 && (
+                        <div className="submission-list">
+                          <h4>Student Submissions</h4>
+
+                          {assignment.submissions.map((item) => (
+                            <div className="submission-item" key={item.id}>
+                              <div>
+                                <strong>{item.student}</strong>
+                                <small>{item.file}</small>
+
+                                <span
+                                  className={`status-badge status-${item.status.toLowerCase()}`}
+                                >
+                                  {item.status}
+                                </span>
+                              </div>
+
+                              <button
+                                className="review-btn"
+                                onClick={() =>
+                                  openReviewModal(assignment, item)
+                                }
+                              >
+                                {item.status === "Reviewed"
+                                  ? "Edit Review"
+                                  : "Review"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          {!loading && filteredAssignments.length === 0 && (
             <div className="empty-state">
               <FaClipboardCheck />
               <h3>No assignments found</h3>
@@ -792,8 +907,16 @@ export default function Assignment() {
                   Cancel
                 </button>
 
-                <button type="submit" className="primary-btn">
-                  {modal === "create" ? "Create Assignment" : "Save Changes"}
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Saving..."
+                    : modal === "create"
+                      ? "Create Assignment"
+                      : "Save Changes"}
                 </button>
               </div>
             </form>
@@ -1025,5 +1148,4 @@ export default function Assignment() {
     </div>
   );
 }
-
 

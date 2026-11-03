@@ -12,6 +12,7 @@ import {
   FaPaperclip,
   FaSmile,
   FaArrowLeft,
+  FaComments,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -434,7 +435,7 @@ function Messenger() {
         ) : (
           <div className="empty-conversation welcome-chat">
             <div className="empty-chat-icon">
-              <FaComments />
+              <FaComments/>
             </div>
             <h2>Welcome to AME Messenger</h2>
             <p>Select a conversation to start messaging.</p>
@@ -446,3 +447,7 @@ function Messenger() {
 }
 
 export default Messenger;
+
+
+
+

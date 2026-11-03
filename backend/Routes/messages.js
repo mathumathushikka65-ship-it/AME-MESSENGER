@@ -6,6 +6,7 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const authMiddleware = require('../Middleware/authMiddleware');
 
+
 // Send a new message
 router.post('/:conversationId', authMiddleware, async (req, res) => {
     try {
@@ -102,6 +103,84 @@ router.get('/:conversationId', authMiddleware, async (req, res) => {
         });
     }
 });
+
+
+// Mark messages as read
+router.put('/:conversationId/read', authMiddleware, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.userId;
+
+        const conversation = await Conversation.findOne({
+            _id: conversationId,
+            participants: userId
+        });
+
+        if (!conversation) {
+            return res.status(404).json({
+                message: 'Conversation not found'
+            });
+        }
+
+        // Find messages sent by other users
+        const messages = await Message.find({
+            conversationId,
+            sender: { $ne: userId },
+            'readBy.user': { $ne: userId }
+        });
+
+        if (messages.length === 0) {
+            return res.status(200).json({
+                message: 'No unread messages',
+                updatedCount: 0
+            });
+        }
+
+        const messageIds = messages.map(message => message._id);
+
+        // Update read status
+        await Message.updateMany(
+            { _id: { $in: messageIds } },
+            {
+                $push: {
+                    readBy: {
+                        user: userId,
+                        readAt: new Date()
+                    }
+                }
+            }
+        );
+
+        const io = req.app.get('io');
+
+        // Notify message senders
+        if (io) {
+            messages.forEach(message => {
+                io.to(`user:${message.sender.toString()}`).emit(
+                    'message-read',
+                    {
+                        messageId: message._id,
+                        conversationId,
+                        readBy: userId,
+                        readAt: new Date()
+                    }
+                );
+            });
+        }
+
+        res.status(200).json({
+            message: 'Messages marked as read',
+            updatedCount: messages.length
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: 'Failed to mark messages as read',
+            error: error.message
+        });
+    }
+});
+
 
 module.exports = router;
 
