@@ -227,3 +227,35 @@ router.put('/profile', authMiddleware, async (req, res) => {
         });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+// const express = require('express');
+// const router = express.Router();
+// const authMiddleware = require('../Middleware/authMiddleware');
+
+// // Controller functions-ah inga import pannuroom
+// const authController = require('../controllers/authController');
+
+// // Signup API
+// router.post('/signup', authController.signup);
+
+// // Login API
+// router.post('/login', authController.login);
+
+// // Get User Profile API
+// router.get('/me', authMiddleware, authController.getMe);
+
+// // Update Profile API
+// router.put('/profile', authMiddleware, authController.updateProfile);
+
+// module.exports = router;

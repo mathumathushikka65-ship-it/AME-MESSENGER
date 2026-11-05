@@ -21,7 +21,7 @@ const reminderSchema = new mongoose.Schema(
   { timestamps: true }
 );
  
-
+// Frontend "id" use pannuthu, so _id-ah id-ah maathrom
 reminderSchema.set("toJSON", {
   transform: (doc, ret) => {
     ret.id = ret._id;

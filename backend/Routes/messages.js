@@ -24,7 +24,7 @@ router.post('/:conversationId', authMiddleware, async (req, res) => {
             });
         }
 
-        if (messageType === 'text' && !content?.trim()) {
+        if ((messageType || 'text') === 'text' && !content?.trim()) {
             return res.status(400).json({
                 message: 'Message content is required'
             });

@@ -63,6 +63,13 @@
   box-shadow: 0 4px 20px rgba(7, 26, 82, 0.04);
 }
 
+.logo{
+  height: 50px;
+  width: 50px;
+  border-radius:5px ;
+  background-color:#38bdf8;
+}
+
 .Logo {
   display: flex;
   align-items: center;
