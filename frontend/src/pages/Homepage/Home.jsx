@@ -42,7 +42,7 @@ function Home() {
       icon: <FaFileAlt />,
       color: "blue",
       action: "Create Document",
-      path: "/Document",
+      path: "/DocumentCreation",
     },
     {
       title: "Messages",
@@ -131,6 +131,7 @@ function Home() {
           </Link>
 
           <Link
+            to="/DocumentCreation"
             type="button"
             className="sidebar-link"
           >

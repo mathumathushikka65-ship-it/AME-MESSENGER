@@ -12,6 +12,8 @@ import Reminder from "./pages/Reminder/Reminder";
 import Admin from "./pages/AdminDashboard/Admin";
 import Contact from "./pages/contectpage/Contact";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Document from "./pages/DocumentCreation/Documentcreation";
+
 
 
 
@@ -31,6 +33,7 @@ function App() {
   <Route path="/Reminder" element={<Reminder/>}/>
   <Route path="/Admin" element={<Admin/>}/>
   <Route path="/Contact" element={<Contact/>}/>
+  <Route path="/DocumentCreation" element={<Document/>}/>
 
   </Route>
   </Routes>
