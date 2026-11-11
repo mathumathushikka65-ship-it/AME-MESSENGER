@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./Admin.css";
 
 import {
@@ -18,19 +18,122 @@ import {
   FaChalkboardTeacher,
   FaUserShield,
   FaUserPlus,
-  FaCheckCircle,
-  FaClock,
   FaTrash,
   FaEye,
   FaCalendarAlt,
-  FaDownload,
-  FaEnvelope,
 } from "react-icons/fa";
+import API_URL from "../../services/api";
+
+// ---------- API setup ----------
+const API = `${API_URL}/admin`;
+
+const authFetch = async (path, options = {}) => {
+  const token = localStorage.getItem("ameAdminToken"); // Login.jsx save panra key
+
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Request failed");
+  return data;
+};
+
+// ---------- helpers ----------
+const timeAgo = (date) => {
+  const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hours ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+};
+
+const fmtDate = (date) => (date ? new Date(date).toLocaleDateString() : "-");
+
+const activityIcons = {
+  user: <FaUserPlus />,
+  assignment: <FaTasks />,
+  document: <FaFileAlt />,
+  reminder: <FaBell />,
+  message: <FaComments />,
+};
+
+// Monitor pages: endpoint + table columns
+const monitorConfig = {
+  Assignments: {
+    title: "Assignment",
+    path: "/assignments",
+    icon: <FaTasks />,
+    columns: [
+      ["Title", (i) => i.title],
+      ["Subject", (i) => i.subject],
+      ["Owner", (i) => i.user?.username || "-"],
+      ["Due Date", (i) => fmtDate(i.dueDate)],
+      ["Priority", (i) => i.priority || "-"],
+      ["Status", (i) => i.status || "-"],
+    ],
+  },
+  Documents: {
+    title: "Document",
+    path: "/documents",
+    icon: <FaFileAlt />,
+    columns: [
+      ["Title", (i) => i.title],
+      ["Owner", (i) => i.owner?.username || "-"],
+      ["Created", (i) => fmtDate(i.createdAt)],
+      ["Updated", (i) => fmtDate(i.updatedAt)],
+    ],
+  },
+  Messages: {
+    title: "Message",
+    path: "/messages",
+    icon: <FaComments />,
+    columns: [
+      ["Sender", (i) => i.sender?.username || "-"],
+      ["Type", (i) => i.messageType],
+      ["Sent At", (i) => new Date(i.createdAt).toLocaleString()],
+    ],
+  },
+  Reminders: {
+    title: "Reminder",
+    path: "/reminders",
+    icon: <FaBell />,
+    columns: [
+      ["Title", (i) => i.title],
+      ["Category", (i) => i.category || "-"],
+      ["Date", (i) => fmtDate(i.date)],
+      ["Time", (i) => i.time],
+      ["Priority", (i) => i.priority || "-"],
+      ["Completed", (i) => (i.completed ? "Yes" : "No")],
+    ],
+  },
+};
+
+const emptyForm = { username: "", email: "", password: "", role: "student" };
 
 export default function Admin() {
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  // backend data
+  const [stats, setStats] = useState(null);
+  const [chart, setChart] = useState(new Array(12).fill(0));
+  const [activities, setActivities] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [monitorData, setMonitorData] = useState({});
+  const [error, setError] = useState("");
+
+  // add user modal
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [form, setForm] = useState(emptyForm);
 
   const menuItems = [
     { name: "Dashboard", icon: <FaHome /> },
@@ -43,32 +146,97 @@ export default function Admin() {
     { name: "Settings", icon: <FaCog /> },
   ];
 
-  const users = [
-    { name: "Arun Kumar", email: "arun@gmail.com", role: "Student", status: "Active" },
-    { name: "Priya Devi", email: "priya@gmail.com", role: "Teacher", status: "Active" },
-    { name: "Nimal Raj", email: "nimal@gmail.com", role: "Student", status: "Pending" },
-    { name: "Kavitha S", email: "kavitha@gmail.com", role: "Officer", status: "Active" },
-    { name: "Sanjay M", email: "sanjay@gmail.com", role: "Student", status: "Inactive" },
+  // ---------- load data ----------
+  const loadStats = () =>
+    authFetch("/stats").then(setStats).catch((e) => setError(e.message));
+
+  useEffect(() => {
+    loadStats();
+    authFetch("/chart").then(setChart).catch((e) => setError(e.message));
+    authFetch("/activities").then(setActivities).catch((e) => setError(e.message));
+    authFetch("/users").then(setUsers).catch((e) => setError(e.message));
+  }, []);
+
+  // monitor page open aagum bodhu andha page data load
+  useEffect(() => {
+    const config = monitorConfig[activePage];
+    if (!config) return;
+
+    authFetch(config.path)
+      .then((data) => setMonitorData((prev) => ({ ...prev, [activePage]: data })))
+      .catch((e) => setError(e.message));
+  }, [activePage]);
+
+  // ---------- actions ----------
+  const deleteUser = async (id) => {
+    if (!window.confirm("Delete this user?")) return;
+    try {
+      await authFetch(`/users/${id}`, { method: "DELETE" });
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      loadStats();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const changeStatus = async (id, status) => {
+    try {
+      const updated = await authFetch(`/users/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const addUser = async (e) => {
+    e.preventDefault();
+    try {
+      const created = await authFetch("/users", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      setUsers((prev) => [created, ...prev]);
+      setShowAddUser(false);
+      setForm(emptyForm);
+      loadStats();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("ameAdminToken");
+    localStorage.removeItem("ameAdminUser");
+    window.location.href = "/Login";
+  };
+
+  // ---------- derived data ----------
+  const changeText = (card) =>
+    card ? `${card.change >= 0 ? "+" : ""}${card.change}%` : "";
+
+  const cardNumber = (card) => (card ? card.count.toLocaleString() : "...");
+
+  const stat = (key) => (stats ? stats[key] : null);
+
+  const statCards = [
+    { title: "Total Users", key: "totalUsers", icon: <FaUsers />, color: "blue" },
+    { title: "Students", key: "students", icon: <FaGraduationCap />, color: "purple" },
+    { title: "Teachers", key: "teachers", icon: <FaChalkboardTeacher />, color: "green" },
+    { title: "Officers", key: "officers", icon: <FaUserShield />, color: "orange" },
+    { title: "Assignments", key: "assignments", icon: <FaTasks />, color: "pink" },
+    { title: "Documents", key: "documents", icon: <FaFileAlt />, color: "cyan" },
+    { title: "Messages", key: "messages", icon: <FaComments />, color: "indigo" },
+    { title: "Reminders", key: "reminders", icon: <FaBell />, color: "yellow" },
   ];
 
-  const activities = [
-    { title: "New user registered", detail: "Arun Kumar joined as Student", time: "5 minutes ago", icon: <FaUserPlus /> },
-    { title: "Assignment created", detail: "Mathematics Assignment", time: "20 minutes ago", icon: <FaTasks /> },
-    { title: "New document uploaded", detail: "Science Notes.pdf", time: "1 hour ago", icon: <FaFileAlt /> },
-    { title: "New reminder created", detail: "Project submission reminder", time: "2 hours ago", icon: <FaBell /> },
-    { title: "New message activity", detail: "New conversation started", time: "3 hours ago", icon: <FaComments /> },
-  ];
+  const totalUsers = stats ? stats.totalUsers.count : 0;
+  const percent = (card) =>
+    totalUsers && card ? Math.round((card.count / totalUsers) * 100) : 0;
 
-  const stats = [
-    { title: "Total Users", number: "1,250", change: "+12.5%", icon: <FaUsers />, color: "blue" },
-    { title: "Students", number: "950", change: "+8.2%", icon: <FaGraduationCap />, color: "purple" },
-    { title: "Teachers", number: "180", change: "+5.4%", icon: <FaChalkboardTeacher />, color: "green" },
-    { title: "Officers", number: "120", change: "+3.1%", icon: <FaUserShield />, color: "orange" },
-    { title: "Assignments", number: "320", change: "+15.8%", icon: <FaTasks />, color: "pink" },
-    { title: "Documents", number: "485", change: "+9.6%", icon: <FaFileAlt />, color: "cyan" },
-    { title: "Messages", number: "2,840", change: "+18.2%", icon: <FaComments />, color: "indigo" },
-    { title: "Reminders", number: "156", change: "+6.7%", icon: <FaBell />, color: "yellow" },
-  ];
+  const maxChart = Math.max(...chart, 1);
 
   const filteredUsers = users.filter((user) =>
     `${user.name} ${user.email} ${user.role}`
@@ -76,6 +244,7 @@ export default function Admin() {
       .includes(search.toLowerCase())
   );
 
+  // ---------- pages ----------
   const renderDashboard = () => (
     <>
       <div className="admin-welcome">
@@ -89,15 +258,15 @@ export default function Admin() {
       </div>
 
       <div className="admin-stats-grid">
-        {stats.map((stat, index) => (
-          <div className="admin-stat-card" key={index}>
-            <div className={`admin-stat-icon ${stat.color}`}>
-              {stat.icon}
-            </div>
+        {statCards.map((item) => (
+          <div className="admin-stat-card" key={item.key}>
+            <div className={`admin-stat-icon ${item.color}`}>{item.icon}</div>
             <div>
-              <p>{stat.title}</p>
-              <h2>{stat.number}</h2>
-              <span className="admin-growth">{stat.change} from last month</span>
+              <p>{item.title}</p>
+              <h2>{cardNumber(stat(item.key))}</h2>
+              <span className="admin-growth">
+                {changeText(stat(item.key))} from last month
+              </span>
             </div>
           </div>
         ))}
@@ -112,19 +281,20 @@ export default function Admin() {
             </div>
             <select defaultValue="This Year">
               <option>This Year</option>
-              <option>This Month</option>
-              <option>This Week</option>
             </select>
           </div>
 
           <div className="admin-chart">
-            {[45, 65, 50, 80, 60, 90, 70, 95, 75, 85, 65, 100].map((height, i) => (
+            {chart.map((value, i) => (
               <div className="admin-chart-column" key={i}>
                 <div
                   className="admin-chart-bar"
-                  style={{ height: `${height}%` }}
+                  style={{ height: `${Math.max((value / maxChart) * 100, 2)}%` }}
+                  title={`${value} activities`}
                 />
-                <span>{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}</span>
+                <span>
+                  {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}
+                </span>
               </div>
             ))}
           </div>
@@ -141,15 +311,15 @@ export default function Admin() {
           <div className="admin-distribution">
             <div className="admin-donut">
               <div>
-                <h2>1,250</h2>
+                <h2>{totalUsers.toLocaleString()}</h2>
                 <span>Total Users</span>
               </div>
             </div>
 
             <div className="admin-legend">
-              <p><i className="legend-student" /> Students <b>76%</b></p>
-              <p><i className="legend-teacher" /> Teachers <b>14%</b></p>
-              <p><i className="legend-officer" /> Officers <b>10%</b></p>
+              <p><i className="legend-student" /> Students <b>{percent(stat("students"))}%</b></p>
+              <p><i className="legend-teacher" /> Teachers <b>{percent(stat("teachers"))}%</b></p>
+              <p><i className="legend-officer" /> Officers <b>{percent(stat("officers"))}%</b></p>
             </div>
           </div>
         </div>
@@ -165,14 +335,15 @@ export default function Admin() {
         </div>
 
         <div className="admin-activity-list">
+          {activities.length === 0 && <p>No activities yet.</p>}
           {activities.map((activity, index) => (
             <div className="admin-activity-item" key={index}>
-              <div className="admin-activity-icon">{activity.icon}</div>
+              <div className="admin-activity-icon">{activityIcons[activity.type]}</div>
               <div className="admin-activity-details">
                 <h4>{activity.title}</h4>
                 <p>{activity.detail}</p>
               </div>
-              <span>{activity.time}</span>
+              <span>{timeAgo(activity.createdAt)}</span>
             </div>
           ))}
         </div>
@@ -187,7 +358,7 @@ export default function Admin() {
           <h3>User Management</h3>
           <p>Manage all registered users</p>
         </div>
-        <button className="admin-primary-btn" onClick={() => alert("Connect this action to your user registration backend.")}>
+        <button className="admin-primary-btn" onClick={() => setShowAddUser(true)}>
           <FaUserPlus /> Add User
         </button>
       </div>
@@ -214,21 +385,37 @@ export default function Admin() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user, index) => (
-              <tr key={index}>
+            {filteredUsers.map((user) => (
+              <tr key={user.id}>
                 <td>{user.name}</td>
                 <td>{user.email}</td>
                 <td>{user.role}</td>
                 <td>
-                  <span className={`admin-status ${user.status.toLowerCase()}`}>
-                    {user.status}
-                  </span>
+                  <select
+                    className={`admin-status ${user.status.toLowerCase()}`}
+                    value={user.status}
+                    onChange={(e) => changeStatus(user.id, e.target.value)}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </td>
                 <td>
-                  <button className="admin-icon-btn" title="View user" onClick={() => alert(`${user.name}\n${user.email}\n${user.role}\n${user.status}`)}>
+                  <button
+                    className="admin-icon-btn"
+                    title="View user"
+                    onClick={() =>
+                      alert(`${user.name}\n${user.email}\n${user.role}\n${user.status}`)
+                    }
+                  >
                     <FaEye />
                   </button>
-                  <button className="admin-icon-btn delete" title="Delete (demo)" onClick={() => alert("Connect deletion to your backend first.")}>
+                  <button
+                    className="admin-icon-btn delete"
+                    title="Delete user"
+                    onClick={() => deleteUser(user.id)}
+                  >
                     <FaTrash />
                   </button>
                 </td>
@@ -243,14 +430,55 @@ export default function Admin() {
     </div>
   );
 
-  const renderMonitor = (title, description, icon) => (
+  const renderMonitor = (page) => {
+    const config = monitorConfig[page];
+    const rows = monitorData[page];
+
+    return (
+      <div className="admin-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <h3>{config.title} Monitoring</h3>
+            <p>Latest records (max 100)</p>
+          </div>
+        </div>
+
+        <div className="admin-table-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                {config.columns.map(([label]) => (
+                  <th key={label}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!rows && (
+                <tr><td colSpan={config.columns.length}>Loading...</td></tr>
+              )}
+              {rows && rows.length === 0 && (
+                <tr><td colSpan={config.columns.length}>No records found.</td></tr>
+              )}
+              {rows &&
+                rows.map((item) => (
+                  <tr key={item._id}>
+                    {config.columns.map(([label, getValue]) => (
+                      <td key={label}>{getValue(item)}</td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPlaceholder = (title, description, icon) => (
     <div className="admin-panel admin-empty-panel">
       <div className="admin-empty-icon">{icon}</div>
-      <h3>{title} Monitoring</h3>
+      <h3>{title}</h3>
       <p>{description}</p>
-      <p className="admin-demo-note">
-        Actual records will appear here after connecting the database.
-      </p>
     </div>
   );
 
@@ -261,17 +489,14 @@ export default function Admin() {
       case "Users":
         return renderUsers();
       case "Assignments":
-        return renderMonitor("Assignment", "Monitor assignments created by teachers and students.", <FaTasks />);
       case "Documents":
-        return renderMonitor("Document", "Monitor uploaded and created documents.", <FaFileAlt />);
       case "Messages":
-        return renderMonitor("Message", "Monitor messaging activity and conversations.", <FaComments />);
       case "Reminders":
-        return renderMonitor("Reminder", "Monitor upcoming and completed reminders.", <FaBell />);
+        return renderMonitor(activePage);
       case "Analytics":
-        return renderMonitor("Analytics", "View platform growth and activity reports.", <FaChartBar />);
+        return renderPlaceholder("Analytics", "View platform growth and activity reports.", <FaChartBar />);
       case "Settings":
-        return renderMonitor("Settings", "Manage administrator preferences and platform settings.", <FaCog />);
+        return renderPlaceholder("Settings", "Manage administrator preferences and platform settings.", <FaCog />);
       default:
         return renderDashboard();
     }
@@ -285,7 +510,7 @@ export default function Admin() {
 
       <aside className={`admin-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="admin-logo">
-          <div className="admin-logo-icon">A</div>
+          <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <div>
             <h2>AME</h2>
             <span>MESSENGER</span>
@@ -323,7 +548,7 @@ export default function Admin() {
             </div>
           </div>
 
-          <button className="admin-logout" onClick={() => alert("Connect this button to your authentication logout.")}>
+          <button className="admin-logout" onClick={logout}>
             <FaSignOutAlt /> Logout
           </button>
         </div>
@@ -351,6 +576,11 @@ export default function Admin() {
         </header>
 
         <section className="admin-content">
+          {error && (
+            <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: 8, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
           {renderContent()}
         </section>
 
@@ -358,6 +588,56 @@ export default function Admin() {
           © 2026 AME MESSENGER. All rights reserved.
         </footer>
       </main>
+
+      {showAddUser && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => setShowAddUser(false)}
+        >
+          <form
+            onSubmit={addUser}
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", padding: 24, borderRadius: 12, width: 360, display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <h3>Add User</h3>
+            <input
+              placeholder="Username"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              required
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password (min 8 characters)"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              minLength={8}
+              required
+            />
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="university">University</option>
+              <option value="course-center">Course Center</option>
+              <option value="other">Other</option>
+            </select>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setShowAddUser(false)}>Cancel</button>
+              <button type="submit" className="admin-primary-btn">Create</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

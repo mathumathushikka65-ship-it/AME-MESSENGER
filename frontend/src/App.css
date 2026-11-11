@@ -85,3 +85,9 @@ select {
 .primary-button:hover {
   background-color: var(--secondary-color);
 } 
+
+.logo-image{
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}

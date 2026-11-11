@@ -588,7 +588,7 @@ export default function SettingsPage() {
     <div className="ame-settings-page">
       <aside className="settings-sidebar">
         <div className="settings-brand">
-          <div className="settings-logo">A</div>
+      <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <div>
             <h2>AME</h2>
             <span>MESSENGER</span>

@@ -21,25 +21,30 @@ const userSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true,
-        enum: ['student', 'teacher', 'university', 'course-center', 'other']
+        enum: ['student', 'teacher', 'university', 'course-center', 'other', 'admin']
+    },
+    status: {
+        type: String,
+        enum: ['Active', 'Pending', 'Inactive'],
+        default: 'Active'
     },
     about: {
-    type: String,
-    default: "Available on AME Messenger",
-    maxlength: 150
-},
-phone: {
-    type: String,
-    default: ""
-},
-isOnline: {
-    type: Boolean,
-    default: false
-},
-lastSeen: {
-    type: Date,
-    default: null
-}
+        type: String,
+        default: "Available on AME Messenger",
+        maxlength: 150
+    },
+    phone: {
+        type: String,
+        default: ""
+    },
+    isOnline: {
+        type: Boolean,
+        default: false
+    },
+    lastSeen: {
+        type: Date,
+        default: null
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

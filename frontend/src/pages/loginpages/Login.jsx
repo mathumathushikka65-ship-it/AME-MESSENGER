@@ -1,4 +1,3 @@
-
 import "../../App.css";
 import "./Login.css";
 import { useState } from "react";
@@ -41,7 +40,12 @@ export default function Login() {
       localStorage.setItem("ameToken", data.token);
       localStorage.setItem("ameUser", JSON.stringify(data.user));
 
-      navigate("/Home");
+      // Admin-na Admin page-ku, matha users-ku Home-ku
+      if (data.user.role === "admin") {
+        navigate("/Admin");
+      } else {
+        navigate("/Home");
+      }
 
     } catch (error) {
       setErrorMessage(error.message || "Something went wrong");
@@ -62,7 +66,7 @@ export default function Login() {
     <div className="login-page">
       <header className="login-header">
         <Link to="/" className="login-brand">
-          <span className="brand-icon">A</span>
+             <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <span>AME MESSENGER</span>
         </Link>
 

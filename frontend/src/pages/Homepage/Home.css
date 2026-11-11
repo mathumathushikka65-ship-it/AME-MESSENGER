@@ -105,6 +105,12 @@ input:focus-visible {
   letter-spacing: -0.3px;
   white-space: nowrap;
 }
+.sidebar-brand span {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
 
 .brand-icon {
   display: grid;

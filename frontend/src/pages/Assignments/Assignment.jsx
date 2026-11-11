@@ -450,7 +450,7 @@ export default function Assignment() {
       {/* SIDEBAR */}
       <aside className="assignments-sidebar">
         <div className="sidebar-logo">
-          <span className="logo-icon">A</span>
+           <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <span>AME MESSENGER</span>
         </div>
 

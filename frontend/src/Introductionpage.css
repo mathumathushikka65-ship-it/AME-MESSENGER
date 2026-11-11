@@ -63,12 +63,12 @@
   box-shadow: 0 4px 20px rgba(7, 26, 82, 0.04);
 }
 
-.logo{
+/* .logo{
   height: 50px;
   width: 50px;
   border-radius:5px ;
   background-color:#38bdf8;
-}
+} */
 
 .Logo {
   display: flex;
@@ -76,27 +76,13 @@
   gap: 11px;
   flex-shrink: 0;
 }
-
-.Logo-mark {
-  display: grid;
-  place-items: center;
-
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-
-  background: linear-gradient(
-    135deg,
-    var(--electric-bright),
-    var(--electric),
-    var(--electric-deep)
-  );/*  3colors stright code */
-
-  color: #ffffff;
-  font-size: 21px;
-  font-weight: 800;
-
-  box-shadow: 0 6px 18px rgba(37, 99, 255, 0.30);
+.logo-image{
+  height: 70px;
+  width: 70px;
+  border-radius:5px ;
+  object-fit: contain;
+  display: block;
+ 
 }
 
 .App-name {

@@ -757,3 +757,11 @@
     display: none;
   }
 }
+
+/* Close chat button (red hover) */
+
+.chat-header-actions .close-chat-btn:hover {
+  border-color: #ffc9c9;
+  color: #e34d59;
+  background: #fff0f0;
+}

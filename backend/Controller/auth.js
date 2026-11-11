@@ -1,9 +1,17 @@
+
+const express = require('express');
+const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const authMiddleware = require('../Middleware/authMiddleware');
 const jwt = require('jsonwebtoken');
+const LoginLog = require('../models/LoginLog');
 
-// 1. Signup Logic
-exports.signup = async (req, res) => {
+
+// ===============================
+// SIGNUP API
+// ===============================
+router.post('/signup', async (req, res) => {
     try {
         const { username, email, password, role } = req.body;
 
@@ -72,15 +80,19 @@ exports.signup = async (req, res) => {
 
     } catch (error) {
         console.error('Signup Error:', error.message);
+
         res.status(500).json({
             message: 'Signup failed',
             error: error.message
         });
     }
-};
+});
 
-// 2. Login Logic
-exports.login = async (req, res) => {
+
+// ===============================
+// LOGIN API
+// ===============================
+router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -93,9 +105,6 @@ exports.login = async (req, res) => {
         const user = await User.findOne({
             email: email.trim().toLowerCase()
         });
-
-        console.log("Login email received:", email.trim().toLowerCase());
-        console.log("User found:", !!user);
 
         if (!user) {
             return res.status(401).json({
@@ -114,8 +123,29 @@ exports.login = async (req, res) => {
             });
         }
 
+        const now = new Date();
+
+        // Create login history
+        const loginLog = await LoginLog.create({
+            user: user._id,
+            loginAt: now,
+            lastActiveAt: now,
+            ip: req.ip,
+            userAgent: req.get('user-agent') || '',
+            sessionStatus: 'Online'
+        });
+
+        // Update user online status
+        user.isOnline = true;
+        user.lastSeen = now;
+        await user.save();
+
+        // Create JWT token with session ID
         const token = jwt.sign(
-            { userId: user._id },
+            {
+                userId: user._id,
+                sessionId: loginLog._id
+            },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
@@ -126,45 +156,28 @@ exports.login = async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
 
     } catch (error) {
+        console.error('Login Error:', error.message);
+
         res.status(500).json({
             message: 'Login failed',
             error: error.message
         });
     }
-};
+});
 
-// 3. Get Current User Logic
-exports.getMe = async (req, res) => {
+
+// ===============================
+// PROFILE UPDATE API
+// ===============================
+router.put('/profile', authMiddleware, async (req, res) => {
     try {
-        const user = await User.findById(req.userId).select('-password');
-
-        if (!user) {
-            return res.status(404).json({
-                message: 'User not found'
-            });
-        }
-
-        res.status(200).json({
-            message: 'User authenticated successfully',
-            user
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            message: 'Unable to get user details'
-        });
-    }
-};
-
-// 4. Profile Update Logic
-exports.updateProfile = async (req, res) => {
-    try {
-        const { username, about, phone ,email } = req.body;
+        const { username, about, phone, email } = req.body;
 
         if (!username || !username.trim()) {
             return res.status(400).json({
@@ -215,4 +228,57 @@ exports.updateProfile = async (req, res) => {
             error: error.message
         });
     }
-};
+});
+
+
+// ===============================
+// LOGOUT API
+// ===============================
+router.post('/logout', authMiddleware, async (req, res) => {
+    try {
+        const now = new Date();
+
+        // Update login session
+        if (req.sessionId) {
+            await LoginLog.findOneAndUpdate(
+                {
+                    _id: req.sessionId,
+                    user: req.userId
+                },
+                {
+                    $set: {
+                        logoutAt: now,
+                        lastActiveAt: now,
+                        sessionStatus: 'Offline'
+                    }
+                }
+            );
+        }
+
+        // Update user online status
+        await User.findByIdAndUpdate(
+            req.userId,
+            {
+                $set: {
+                    isOnline: false,
+                    lastSeen: now
+                }
+            }
+        );
+
+        res.status(200).json({
+            message: 'Logout successful'
+        });
+
+    } catch (error) {
+        console.error('Logout Error:', error.message);
+
+        res.status(500).json({
+            message: 'Logout failed'
+        });
+    }
+});
+
+
+module.exports = router;
+

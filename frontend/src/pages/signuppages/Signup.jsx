@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Signup.css";
 
+
+
 function Signup() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,16 +39,17 @@ function Signup() {
       setErrorMessage("");
       setLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
+      const response = await fetch("http://localhost:5001/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          username: fullName.trim(),
-          email: email.trim(),
-          password,
-        }),
+      body: JSON.stringify({
+            username: fullName.trim(),
+            email: email.trim(),
+           password,
+            role,
+}),
       });
 
       const data = await response.json();
@@ -57,6 +60,8 @@ function Signup() {
 
       alert("Account created successfully!");
       navigate("/Login");
+        
+      localStorage.setItem("user", JSON.stringify(data.user));
 
     } catch (error) {
       setErrorMessage(error.message || "Unable to connect to the server.");
@@ -69,7 +74,7 @@ function Signup() {
     <div className="signup-page">
       <header className="signup-header">
         <Link to="/" className="signup-brand">
-          <span className="signup-logo">A</span>
+   <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <span>AME MESSENGER</span>
         </Link>
         <p>

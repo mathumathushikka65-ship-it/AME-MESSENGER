@@ -1,9 +1,12 @@
+require('dotenv').config();
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const paymentRoutes = require('./Routes/payment');
+
 
 dotenv.config();
 
@@ -19,14 +22,23 @@ const uploadRoutes = require('./Routes/upload');
 const assignmentRoutes = require('./Routes/assignments');
 const reminderRoutes = require("./Routes/reminderRoutes");
 const documentRoutes = require('./Routes/documents');
+const adminAuthRoutes = require('./Routes/adminAuth');
 
 // Models
 const Conversation = require('./models/Conversation');
 const User = require('./models/User');
+const console = require('console');
 
 // App setup
 const app = express();
 const server = http.createServer(app);
+
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
+
+
+
+
 
 // Socket.IO setup
 const io = new Server(server, {
@@ -47,6 +59,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use("/api/reminders", reminderRoutes);
 
 // API Routes
+app.use('/api/payment', paymentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
@@ -55,8 +68,11 @@ app.use('/api/calls', callRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/admin', require('./Routes/adminRoutes'));
+app.use('/api/admin-auth', adminAuthRoutes);
 
 
+console.log('PAYMENT ROUTE MOUNTED');
 console.log('USER ROUTE MOUNTED');
 console.log('AUTH ROUTE MOUNTED');
 console.log('MESSAGE ROUTE MOUNTED');
@@ -66,6 +82,8 @@ console.log('UPLOAD ROUTE MOUNTED');
 console.log('ASSIGNMENT ROUTE MOUNTED');
 console.log('REMINDER ROUTE MOUNTED');
 console.log('DOCUMENT ROUTE MOUNTED');
+console.log('ADMIN ROUTE MOUNTED');
+console.log('ADMIN AUTH ROUTE MOUNTED');
 
 
 // Home route

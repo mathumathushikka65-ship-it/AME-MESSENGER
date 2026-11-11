@@ -1,6 +1,6 @@
-
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+
 import Login from "./pages/loginpages/Login";
 import Signup from "./pages/signuppages/Signup";
 import IntroductionPage from "./Introductionpage";
@@ -10,40 +10,47 @@ import Assignment from "./pages/Assignments/Assignment";
 import Setting from "./pages/settings/Setting";
 import Reminder from "./pages/Reminder/Reminder";
 import Admin from "./pages/AdminDashboard/Admin";
+import AdminLogin from "./pages/AdminDashboard/AdminLogin";
 import Contact from "./pages/contectpage/Contact";
-import ProtectedRoute from "./components/ProtectedRoute";
 import Document from "./pages/DocumentCreation/Documentcreation";
 
-
-
-
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 function App() {
   return (
-<BrowserRouter><Routes>
-  
-  <Route path="/" element={<IntroductionPage/>} />
-  <Route path="/Login" element={<Login />} />
-  <Route path="/signup" element={<Signup/>} />
-  <Route element={<ProtectedRoute/>}>
-   <Route path="/Home" element={ <Home/>} />
-  <Route path="/Messenger" element={<Messenger/>} />
-  <Route path="/Assignment" element={<Assignment/>}/> 
-  <Route path="/Setting"  element={<Setting/>}/>
-  <Route path="/Reminder" element={<Reminder/>}/>
-  <Route path="/Admin" element={<Admin/>}/>
-  <Route path="/Contact" element={<Contact/>}/>
-  <Route path="/DocumentCreation" element={<Document/>}/>
+    <BrowserRouter>
+      <Routes>
 
-  </Route>
-  </Routes>
+        {/* Public Pages */}
+        <Route path="/" element={<IntroductionPage />} />
+        <Route path="/Login" element={<Login />} />
+        <Route path="/Signup" element={<Signup />} />
 
+        {/* Separate Admin Login */}
+        <Route path="/AdminLogin" element={<AdminLogin />} />
 
-  
-  </BrowserRouter>
+        {/* Normal User Protected Pages */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/Home" element={<Home />} />
+          <Route path="/Messenger" element={<Messenger />} />
+          <Route path="/Assignment" element={<Assignment />} />
+          <Route path="/Setting" element={<Setting />} />
+          <Route path="/Reminder" element={<Reminder />} />
+          <Route path="/Contact" element={<Contact />} />
+          <Route path="/DocumentCreation" element={<Document />} />
+        </Route>
 
-  
+        {/* Admin Protected Page */}
+        <Route element={<AdminRoute />}>
+          <Route path="/Admin" element={<Admin />} />
+        </Route>
 
+        {/* Unknown Route */}
+        <Route path="*" element={<h2>404 - Page Not Found</h2>} />
+
+      </Routes>
+    </BrowserRouter>
   );
 }
 

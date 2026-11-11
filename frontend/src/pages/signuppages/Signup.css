@@ -12,6 +12,15 @@
 .signup-page * {
   box-sizing: border-box;
 }
+.logo-image{
+  height: 80px;
+  width: 80px;
+  border-radius:5px ;
+  object-fit: contain;
+  display: block;
+ 
+}
+ 
 
 /* Header */
 .signup-header {
@@ -40,19 +49,6 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   text-decoration: none;
-}
-
-.signup-logo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #38bdf8, #2563ff, #1237b8);
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 800;
-  box-shadow: 0 6px 18px rgba(37, 99, 255, 0.28);
 }
 
 .signup-header p {

@@ -96,8 +96,8 @@ function Home() {
     <div className="dashboard">
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon">A</div>
-          <span>AME MESSENGER</span>
+          <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
+          <span>AME Messanger </span>
 
           <button
             type="button"

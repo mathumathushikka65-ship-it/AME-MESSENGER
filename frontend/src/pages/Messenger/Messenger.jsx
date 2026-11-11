@@ -13,6 +13,7 @@ import {
   FaSmile,
   FaArrowLeft,
   FaComments,
+  FaTimes,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -213,7 +214,7 @@ function Messenger() {
     <div className="messenger-page">
       <aside className="messenger-sidebar">
         <div className="messenger-brand">
-          <div className="messenger-logo">A</div>
+           <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <div>
             <h2>AME MESSENGER</h2>
             <p>Connect. Learn. Grow.</p>
@@ -354,6 +355,13 @@ function Messenger() {
                 </button>
                 <button title="More options">
                   <FaEllipsisV />
+                </button>
+                <button
+                  className="close-chat-btn"
+                  title="Close chat"
+                  onClick={() => setActiveChat(null)}
+                >
+                  <FaTimes />
                 </button>
               </div>
             </header>

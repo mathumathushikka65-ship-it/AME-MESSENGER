@@ -2,7 +2,7 @@ import "./App.css";
 import "./Introductionpage.css";
 import { Link } from "react-router-dom";
 import { FaBell, FaCalendarAlt, FaCamera, FaCheck, FaComment, FaFileAlt, FaFilePdf, FaGraduationCap, FaHome, FaTasks,} from "react-icons/fa";
-import logo from "./assets/Neon AME Messenger Logo (2).png";
+
 
 
 
@@ -11,8 +11,8 @@ export default function IntroductionPage() {
     <div className="introduction-page">
       {/* navbar */}
       <nav className="navbar">
-        <div className="Logo">
-         <img src={logo} alt="Logo" className="logo"/>
+        <div className="Logo">    
+           <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
           <span className="App-name">AME MESSENGER</span>
           
         </div>

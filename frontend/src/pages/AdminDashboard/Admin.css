@@ -14,20 +14,19 @@
 /* SIDEBAR */
 
 .admin-sidebar {
-  width: 255px;
-  min-width: 255px;
-  background: #123b5d;
-  color: white;
-  min-height: 100vh;
-  padding: 25px 17px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 100;
+  width: var(--sidebar-width);
+  height: 100vh;
+  height: 100dvh;
+  padding: 25px 18px 20px;
   overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 24px rgba(7, 26, 82, 0.025);
 }
 
 .admin-logo {
@@ -39,14 +38,16 @@
 }
 
 .admin-logo-icon {
-  width: 43px;
-  height: 43px;
-  background: white;
-  color: #174b73;
   display: grid;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
   place-items: center;
-  border-radius: 12px;
-  font-size: 24px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #2563ff, #071a52);
+  box-shadow: 0 5px 12px rgba(37, 99, 255, 0.16);
+  color: #ffffff;
+  font-size: 21px;
   font-weight: 800;
 }
 
@@ -54,25 +55,29 @@
   margin: 0;
   font-size: 21px;
   letter-spacing: 1px;
+  color: #071a52;
 }
 
 .admin-logo span {
   font-size: 10px;
   letter-spacing: 2px;
-  color: #b8cbd9;
+  color: #04111a;
 }
 
 .admin-sidebar-label {
+  margin: 0;
+  padding: 0 12px;
+  color: #215cad;
   font-size: 10px;
+  font-weight: 800;
   letter-spacing: 1.5px;
-  color: #a8bfce;
-  padding: 27px 12px 12px;
 }
 
 .admin-menu {
   display: flex;
   flex-direction: column;
   gap: 7px;
+
 }
 
 .admin-menu button {

@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import html2pdf from 'html2pdf.js';
 import './Documentcreation.css';
 
-/* ================= API ================= */
+/*  API  */
 const BASE = 'http://localhost:5001/api/documents';
 
 const request = async (url, options = {}) => {
@@ -27,7 +27,7 @@ const createDocument = (data = {}) => request(BASE, { method: 'POST', body: JSON
 const updateDocument = (id, data) => request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 const deleteDocument = (id) => request(`${BASE}/${id}`, { method: 'DELETE' });
 
-/* ================= Toolbar ================= */
+/* Toolbar  */
 const TOOLS = [
   { label: <b>B</b>, cmd: 'bold' },
   { label: <i>I</i>, cmd: 'italic' },
@@ -61,7 +61,7 @@ const Toolbar = ({ onFormat }) => (
   </div>
 );
 
-/* ================= Sidebar list ================= */
+/*Sidebar list*/
 const DocList = ({ docs, activeId, onNew, onOpen, onDelete }) => (
   <aside className="dc-sidebar">
     <button className="dc-new-btn" onClick={onNew}>+ New document</button>
@@ -79,7 +79,7 @@ const DocList = ({ docs, activeId, onNew, onOpen, onDelete }) => (
   </aside>
 );
 
-/* ================= Editor ================= */
+/*Editor*/
 const AUTOSAVE_DELAY = 1000; // ms
 
 const Editor = ({ doc, onSaved }) => {
@@ -158,7 +158,7 @@ const Editor = ({ doc, onSaved }) => {
   );
 };
 
-/* ================= Main page ================= */
+/*Main page*/
 const Document = () => {
   const [docs, setDocs] = useState([]);
   const [activeDoc, setActiveDoc] = useState(null);

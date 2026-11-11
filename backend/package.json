@@ -21,10 +21,10 @@
     "mongoose": "^9.11.4",
     "multer": "^2.5.0",
     "nodemailer": "^10.3.1",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "stripe": "^23.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   }
 }
-
