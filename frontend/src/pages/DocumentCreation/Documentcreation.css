@@ -55,3 +55,89 @@
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+
+
+/* =========================================
+   DOCUMENT CREATOR - GLOBAL DARK THEME
+========================================= */
+
+[data-theme="dark"] .doc-creator {
+  background: #0f172a;
+  color: #f1f5f9;
+  --border: #334155;
+  --accent: #60a5fa;
+}
+
+/* Sidebar */
+[data-theme="dark"] .doc-creator .dc-sidebar {
+  background: #172033;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .doc-creator .dc-sidebar li.active {
+  background: #263b55;
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-open {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-open small {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-delete {
+  color: #94a3b8;
+}
+
+/* Workspace */
+[data-theme="dark"] .doc-creator .dc-empty {
+  color: #94a3b8;
+}
+
+/* Top bar */
+[data-theme="dark"] .doc-creator .dc-topbar {
+  background: #172033;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .doc-creator .dc-title-input {
+  background: #172033;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .doc-creator .dc-title-input::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .doc-creator .dc-status {
+  color: #94a3b8;
+}
+
+/* Toolbar */
+[data-theme="dark"] .doc-creator .dc-toolbar {
+  background: #172033;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .doc-creator .dc-toolbar button {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .doc-creator .dc-toolbar button:hover {
+  background: #334155;
+}
+
+/* Editor background */
+[data-theme="dark"] .doc-creator .dc-canvas {
+  background: #0f172a;
+}
+
+/* Document paper */
+[data-theme="dark"] .doc-creator .dc-page {
+  background: #1e293b;
+  color: #f1f5f9;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}

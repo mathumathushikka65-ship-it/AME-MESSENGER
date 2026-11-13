@@ -765,3 +765,229 @@
   color: #e34d59;
   background: #fff0f0;
 }
+
+
+/* =========================================
+   MESSENGER - PURE BLACK DARK THEME
+   Preserve original logo, icons, avatars,
+   active tabs and sent message colors.
+========================================= */
+
+/* Main Messenger Background */
+[data-theme="dark"] .messenger-page {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* Sidebar */
+[data-theme="dark"] .messenger-sidebar {
+  background: #000000;
+  border-right-color: #262626;
+}
+
+[data-theme="dark"] .messenger-brand {
+  border-bottom-color: #262626;
+}
+
+[data-theme="dark"] .messenger-brand h2 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .messenger-brand p {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .messenger-profile {
+  border-bottom-color: #262626;
+}
+
+[data-theme="dark"] .profile-info h4 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .profile-info p {
+  color: #a3a3a3;
+}
+
+/* Keep logo and avatar colors unchanged */
+
+/* Sidebar Heading */
+[data-theme="dark"] .messenger-sidebar-heading h3 {
+  color: #ffffff;
+}
+
+/* Keep new chat button original blue */
+
+/* Personal and Group Tabs */
+[data-theme="dark"] .messenger-tabs button {
+  background: #111111;
+  border-color: #333333;
+  color: #d4d4d4;
+}
+
+/* Keep active tab original blue */
+[data-theme="dark"] .messenger-tabs button.active {
+  background: #376ff5;
+  border-color: #376ff5;
+  color: #ffffff;
+}
+
+/* Search */
+[data-theme="dark"] .messenger-search {
+  background: #111111;
+  border-color: #333333;
+  color: #97a3b6;
+}
+
+[data-theme="dark"] .messenger-search input {
+  background: transparent;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .messenger-search input::placeholder {
+  color: #a3a3a3;
+}
+
+/* Contact List */
+[data-theme="dark"] .messenger-contact:hover {
+  background: #171717;
+}
+
+[data-theme="dark"] .messenger-contact.selected {
+  background: #1c1c1c;
+}
+
+[data-theme="dark"] .contact-top h4 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .contact-top span {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .contact-details p {
+  color: #bdbdbd;
+}
+
+[data-theme="dark"] .contact-details small {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .empty-chats {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .messenger-sidebar-footer {
+  border-top-color: #262626;
+  color: #a3a3a3;
+}
+
+/* Keep avatar colors, online dots and unread badges unchanged */
+
+/* Main Chat Area */
+[data-theme="dark"] .messenger-chat-area {
+  background-color: #000000;
+  background-image: none;
+}
+
+/* Chat Header */
+[data-theme="dark"] .chat-header {
+  background: #000000;
+  border-bottom-color: #262626;
+}
+
+[data-theme="dark"] .chat-header-info h3 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .chat-header-info p {
+  color: #a3a3a3;
+}
+
+/* Keep chat header icon colors unchanged */
+
+/* Date Divider */
+[data-theme="dark"] .chat-date-divider span {
+  background: #111111;
+  border-color: #333333;
+  color: #bdbdbd;
+}
+
+/* Received Message Bubble */
+[data-theme="dark"] .message-bubble {
+  background: #111111;
+  border-color: #333333;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .message-row.received .message-bubble p {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .message-time {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .group-sender {
+  color: #bdbdbd;
+}
+
+/* Keep sent message bubble original blue gradient */
+
+/* Empty Conversation */
+[data-theme="dark"] .empty-conversation h3,
+[data-theme="dark"] .empty-conversation h2 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .empty-conversation p {
+  color: #a3a3a3;
+}
+
+/* Keep empty chat icon original colors */
+
+/* Message Input */
+[data-theme="dark"] .chat-input-area {
+  background: #111111;
+  border-color: #333333;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .chat-input-area input {
+  background: transparent;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .chat-input-area input::placeholder {
+  color: #a3a3a3;
+}
+
+/* Keep input icons and send button original colors */
+
+/* Mobile Back Button */
+@media (max-width: 650px) {
+  [data-theme="dark"] .mobile-back-btn {
+    color: #d4d4d4;
+  }
+}
+
+/* MESSENGER PROFILE IMAGE */
+
+.messenger-profile-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* OTHER USERS' PROFILE PHOTOS */
+
+.messenger-user-photo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}

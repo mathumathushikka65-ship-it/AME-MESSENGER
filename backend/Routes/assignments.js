@@ -1,9 +1,171 @@
-
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const Assignment = require('../models/Assignment');
 const authMiddleware = require('../Middleware/authMiddleware');
+const cloudinary = require('../config/cloudinary');
+
+// ---------------- ATTACHMENT SETTINGS ----------------
+const MAX_ATTACHMENTS = 10;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
+const FILE_TYPES = {
+    image: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    video: ['.mp4', '.mov', '.webm', '.mkv', '.avi'],
+    pdf: ['.pdf'],
+    document: ['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt']
+};
+
+const getFileKind = (filename) => {
+    const extension = path.extname(filename).toLowerCase();
+
+    return (
+        Object.keys(FILE_TYPES).find((kind) =>
+            FILE_TYPES[kind].includes(extension)
+        ) || null
+    );
+};
+
+// Local folder: backend/uploads/assignments
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'assignments');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+// Files memory-la vaanguvom, piragu local + Cloudinary rendulayum save pannuvom
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: MAX_FILE_SIZE,
+        files: MAX_ATTACHMENTS
+    },
+    fileFilter: (req, file, cb) => {
+        if (getFileKind(file.originalname)) {
+            cb(null, true);
+        } else {
+            cb(
+                new Error(
+                    'Unsupported file type. Use image, video, PDF or document files.'
+                )
+            );
+        }
+    }
+});
+
+const uploadErrorMessage = (error) => {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+        return 'Each file must be 50 MB or smaller.';
+    }
+
+    if (error.code === 'LIMIT_FILE_COUNT' || error.code === 'LIMIT_UNEXPECTED_FILE') {
+        return `You can upload up to ${MAX_ATTACHMENTS} files.`;
+    }
+
+    return error.message;
+};
+
+// Local save
+const saveLocal = async (file) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const storedName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${extension}`;
+
+    await fs.promises.writeFile(path.join(UPLOAD_DIR, storedName), file.buffer);
+
+    return `/uploads/assignments/${storedName}`;
+};
+
+// Cloudinary save
+const saveCloud = (file) =>
+    new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'AME_MESSENGER/assignments',
+                resource_type: 'auto',
+                use_filename: true,
+                unique_filename: true
+            },
+            (error, result) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(result);
+                }
+            }
+        );
+
+        stream.end(file.buffer);
+    });
+
+// ---------------- LINK HELPERS ----------------
+const getLinkKind = (url) => {
+    const host = url.hostname.replace(/^www\./, '');
+
+    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
+        return 'youtube';
+    }
+
+    if (host === 'drive.google.com' || host === 'docs.google.com') {
+        return 'drive';
+    }
+
+    return 'website';
+};
+
+const getYouTubeId = (url) => {
+    const host = url.hostname.replace(/^www\./, '');
+    let id = null;
+
+    if (host === 'youtu.be') {
+        id = url.pathname.slice(1);
+    } else if (url.searchParams.get('v')) {
+        id = url.searchParams.get('v');
+    } else {
+        const match = url.pathname.match(/^\/(?:embed|shorts|live)\/([\w-]+)/);
+        id = match ? match[1] : null;
+    }
+
+    return id && /^[\w-]{6,20}$/.test(id) ? id : '';
+};
+
+// Frontend anuppura links JSON-a validate pannum (kind-a server-la thirumba kandupidikkum)
+const parseLinks = (raw) => {
+    if (!raw) return [];
+
+    let list;
+
+    try {
+        list = JSON.parse(raw);
+    } catch {
+        return [];
+    }
+
+    if (!Array.isArray(list)) return [];
+
+    return list
+        .slice(0, MAX_ATTACHMENTS)
+        .map((item) => {
+            try {
+                const url = new URL(String(item.url));
+
+                if (!['http:', 'https:'].includes(url.protocol)) return null;
+
+                const kind = getLinkKind(url);
+
+                return {
+                    type: 'link',
+                    kind,
+                    name: String(item.name || url.hostname).slice(0, 200),
+                    url: url.href,
+                    youtubeId: kind === 'youtube' ? getYouTubeId(url) : ''
+                };
+            } catch {
+                return null;
+            }
+        })
+        .filter(Boolean);
+};
 
 // CREATE ASSIGNMENT
 router.post('/', authMiddleware, async (req, res) => {
@@ -83,7 +245,9 @@ router.get('/', authMiddleware, async (req, res) => {
 
         const sort = sortOptions[sortBy] || { createdAt: -1 };
 
-        const assignments = await Assignment.find(filter).sort(sort);
+        const assignments = await Assignment.find(filter)
+            .populate('submissions.student', 'username email')
+            .sort(sort);
 
         res.status(200).json({
             count: assignments.length,
@@ -105,7 +269,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         const assignment = await Assignment.findOne({
             _id: req.params.id,
             user: req.userId
-        });
+        }).populate('submissions.student', 'username email');
 
         if (!assignment) {
             return res.status(404).json({
@@ -178,65 +342,125 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 
-// STUDENT SUBMIT ASSIGNMENT
-router.post('/:id/submit', authMiddleware, async (req, res) => {
-    try {
-        const { fileUrl, fileName } = req.body;
-
-        if (!fileUrl) {
+// STUDENT SUBMIT ASSIGNMENT (files + links)
+router.post('/:id/submit', authMiddleware, (req, res) => {
+    upload.array('files', MAX_ATTACHMENTS)(req, res, async (uploadError) => {
+        if (uploadError) {
             return res.status(400).json({
-                message: 'Submission file URL is required'
+                message: uploadErrorMessage(uploadError)
             });
         }
 
-        const assignment = await Assignment.findById(req.params.id);
+        try {
+            const files = req.files || [];
+            const links = parseLinks(req.body.links);
 
-        if (!assignment) {
-            return res.status(404).json({
-                message: 'Assignment not found'
+            if (files.length + links.length === 0) {
+                return res.status(400).json({
+                    message: 'Please add at least one file or link'
+                });
+            }
+
+            if (files.length + links.length > MAX_ATTACHMENTS) {
+                return res.status(400).json({
+                    message: `You can add up to ${MAX_ATTACHMENTS} attachments`
+                });
+            }
+
+            const assignment = await Assignment.findById(req.params.id);
+
+            if (!assignment) {
+                return res.status(404).json({
+                    message: 'Assignment not found'
+                });
+            }
+
+            const warnings = [];
+
+            // Ovoru file-um local + Cloudinary rendulayum save aagum
+            const fileAttachments = await Promise.all(
+                files.map(async (file) => {
+                    const localPath = await saveLocal(file);
+
+                    let cloud = {};
+
+                    try {
+                        cloud = await saveCloud(file);
+                    } catch (cloudError) {
+                        console.error('Cloudinary upload error:', cloudError.message);
+                        warnings.push(`${file.originalname}: cloud backup failed`);
+                    }
+
+                    return {
+                        type: 'file',
+                        kind: getFileKind(file.originalname),
+                        name: file.originalname,
+                        size: file.size,
+                        localPath,
+                        url: cloud.secure_url || '',
+                        publicId: cloud.public_id || ''
+                    };
+                })
+            );
+
+            const attachments = [...fileAttachments, ...links];
+
+            const fileName =
+                attachments.length === 1
+                    ? attachments[0].name
+                    : `${attachments.length} attachments`;
+
+            const fileUrl = fileAttachments[0]?.url || '';
+            const notes = (req.body.notes || '').toString();
+
+            // Find existing submission by this student
+            let submission = assignment.submissions.find(
+                (item) => String(item.student) === String(req.userId)
+            );
+
+            if (submission) {
+                // Allow student to resubmit
+                submission.fileName = fileName;
+                submission.fileUrl = fileUrl;
+                submission.notes = notes;
+                submission.attachments = attachments;
+                submission.submittedAt = new Date();
+                submission.reviewStatus = 'Submitted';
+                submission.marks = null;
+                submission.feedback = '';
+                submission.reviewedAt = null;
+            } else {
+                // Create a new submission
+                assignment.submissions.push({
+                    student: req.userId,
+                    fileName,
+                    fileUrl,
+                    notes,
+                    attachments
+                });
+
+                submission = assignment.submissions[
+                    assignment.submissions.length - 1
+                ];
+            }
+
+            await assignment.save();
+
+            res.status(201).json({
+                message: 'Assignment submitted successfully',
+                submission,
+                warnings
+            });
+
+        } catch (error) {
+            console.error('Submit error:', error.message);
+
+            res.status(500).json({
+                message: 'Failed to submit assignment',
+                error: error.message
             });
         }
-
-        // Find existing submission by this student
-        let submission = assignment.submissions.find(
-            (item) => String(item.student) === String(req.userId)
-        );
-
-        if (submission) {
-            // Allow student to resubmit
-            submission.fileUrl = fileUrl;
-            submission.fileName = fileName || '';
-            submission.submittedAt = new Date();
-            submission.reviewStatus = 'Submitted';
-            submission.marks = null;
-            submission.feedback = '';
-            submission.reviewedAt = null;
-        } else {
-            // Create a new submission
-            assignment.submissions.push({
-                student: req.userId,
-                fileUrl,
-                fileName: fileName || ''
-            });
-
-            submission = assignment.submissions[
-                assignment.submissions.length - 1
-            ];
-        }
-
-        await assignment.save();
-
-        res.status(201).json({
-            message: 'Assignment submitted successfully',
-            submission
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            message: 'Failed to submit assignment',
-            error: error.message
-        });
-    }
+    });
 });
 
 
@@ -336,4 +560,3 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-

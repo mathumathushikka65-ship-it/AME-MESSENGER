@@ -1,5 +1,7 @@
 import "./Messenger.css"
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import API_URL from "../../services/api";
 import {
   FaSearch,
   FaPaperPlane,
@@ -15,200 +17,406 @@ import {
   FaComments,
   FaTimes,
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-function Messenger() {
-  const [activeTab, setActiveTab] = useState("Personal");
-  const [activeChat, setActiveChat] = useState(1);
-  const [message, setMessage] = useState("");
+// Backend server address (/api illama) - socket.io connect aaga
+const SERVER_URL = API_URL.replace(/\/api\/?$/, "");
 
-  const navigate = useNavigate();
+const COLORS = ["purple", "orange", "green", "blue"];
 
-  const [chats, setChats] = useState([
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      role: "Teacher",
-      type: "Personal",
-      avatar: "SJ",
-      color: "purple",
-      lastMessage: "Please submit your assignment.",
-      time: "09:30 AM",
-      online: true,
-      unread: 2,
-      messages: [
-        {
-          id: 1,
-          text: "Good morning! 👋",
-          time: "09:20 AM",
-          sent: false,
-        },
-        {
-          id: 2,
-          text: "Good morning, Miss!",
-          time: "09:22 AM",
-          sent: true,
-        },
-        {
-          id: 3,
-          text: "Please submit your assignment before 5 PM.",
-          time: "09:30 AM",
-          sent: false,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "John David",
-      role: "Student",
-      type: "Personal",
-      avatar: "JD",
-      color: "orange",
-      lastMessage: "Thank you!",
-      time: "Yesterday",
-      online: false,
-      unread: 0,
-      messages: [
-        {
-          id: 1,
-          text: "Did you finish the project?",
-          time: "Yesterday",
-          sent: false,
-        },
-        {
-          id: 2,
-          text: "Yes, I finished it.",
-          time: "Yesterday",
-          sent: true,
-        },
-        {
-          id: 3,
-          text: "Thank you!",
-          time: "Yesterday",
-          sent: false,
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Web Development Group",
-      role: "Group · 24 members",
-      type: "Group",
-      avatar: "WD",
-      color: "green",
-      lastMessage: "Alex: New notes uploaded",
-      time: "10:15 AM",
-      online: true,
-      unread: 5,
-      messages: [
-        {
-          id: 1,
-          text: "Welcome to our Web Development group!",
-          time: "10:00 AM",
-          sent: false,
-          sender: "Sarah",
-        },
-        {
-          id: 2,
-          text: "The new class notes are available.",
-          time: "10:10 AM",
-          sent: false,
-          sender: "Alex",
-        },
-        {
-          id: 3,
-          text: "Thank you for sharing!",
-          time: "10:15 AM",
-          sent: true,
-        },
-      ],
-    },
-    {
-      id: 4,
-      name: "University Students",
-      role: "Group · 48 members",
-      type: "Group",
-      avatar: "US",
-      color: "blue",
-      lastMessage: "Meeting at 2 PM",
-      time: "Yesterday",
-      online: false,
-      unread: 0,
-      messages: [
-        {
-          id: 1,
-          text: "Our next meeting is at 2 PM.",
-          time: "Yesterday",
-          sent: false,
-          sender: "Admin",
-        },
-      ],
-    },
-  ]);
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("ameToken")}`,
+});
 
-  const selectedChat = chats.find((chat) => chat.id === activeChat);
+// Login token-kulla irukkura userId-a edukkum
+const getUserIdFromToken = () => {
+  try {
+    const token = localStorage.getItem("ameToken");
 
-  const filteredChats = chats.filter((chat) => {
-    return chat.type === activeTab;
-  });
+    if (!token) return null;
 
-  const sendMessage = (e) => {
-    e.preventDefault();
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+    );
 
-    if (!message.trim() || !selectedChat) return;
+    return payload.userId || null;
+  } catch {
+    return null;
+  }
+};
 
-    const newMessage = {
-      id: Date.now(),
-      text: message.trim(),
-      time: new Date().toLocaleTimeString([], {
+const getInitials = (name = "") => name.trim().slice(0, 2).toUpperCase() || "?";
+
+const getColor = (name = "") =>
+  COLORS[name.length ? name.charCodeAt(0) % COLORS.length : 0];
+
+const byUpdated = (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt);
+
+const formatMessageTime = (value) =>
+  value
+    ? new Date(value).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      }),
-      sent: true,
-    };
+      })
+    : "";
 
-    setChats((previousChats) =>
-      previousChats.map((chat) =>
-        chat.id === activeChat
-          ? {
-              ...chat,
-              lastMessage: newMessage.text,
-              time: newMessage.time,
-              messages: [...chat.messages, newMessage],
-            }
-          : chat
-      )
-    );
+// Sidebar-la: indru-na neram, nethu-na "Yesterday", illa-na date
+const formatTime = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  const now = new Date();
+
+  if (date.toDateString() === now.toDateString()) {
+    return formatMessageTime(value);
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+  return date.toLocaleDateString([], { day: "numeric", month: "short" });
+};
+
+// Conversation-a sidebar/header-ku vendiya name, avatar, color-a maathum
+const getChatInfo = (conversation, myId) => {
+  if (conversation.type === "group") {
+    const name = conversation.groupName || "Group";
+
+    return {
+      name,
+      avatar: getInitials(name),
+      profilePhoto: "",
+      color: getColor(name),
+      role: `Group · ${conversation.participants.length} members`,
+      type: "Group",
+    };
+  }
+
+  const other = conversation.participants.find(
+    (participant) => String(participant._id) !== String(myId)
+  );
+
+  const name = other?.username || "Unknown user";
+
+  return {
+    name,
+    avatar: getInitials(name),
+    profilePhoto: other?.profilePhoto || "",
+    color: getColor(name),
+    role: other?.email || "",
+    type: "Personal",
+  };
+};
+
+const getPreview = (conversation, myId) => {
+  const last = conversation.lastMessage;
+
+  if (!last) return "Start a conversation";
+
+  const text = last.content || last.fileName || "Attachment";
+
+  if (conversation.type === "group") {
+    const mine = String(last.sender?._id) === String(myId);
+    return `${mine ? "You" : last.sender?.username || "Someone"}: ${text}`;
+  }
+
+  return text;
+};
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("ameUser") || "null");
+  } catch {
+    return null;
+  }
+};
+
+function Messenger() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // CURRENT USER PROFILE
+const [currentUser, setCurrentUser] = useState(getStoredUser);
+
+useEffect(() => {
+  const updateUser = () => {
+    setCurrentUser(getStoredUser());
+  };
+
+  window.addEventListener("ameUserUpdated", updateUser);
+  window.addEventListener("storage", updateUser);
+
+  return () => {
+    window.removeEventListener("ameUserUpdated", updateUser);
+    window.removeEventListener("storage", updateUser);
+  };
+}, []);
+
+  const myId = getUserIdFromToken();
+
+  const [activeTab, setActiveTab] = useState("Personal");
+  const [activeChat, setActiveChat] = useState(null);
+  const [message, setMessage] = useState("");
+
+  const [conversations, setConversations] = useState([]);
+  const [messagesByChat, setMessagesByChat] = useState({});
+  const [unread, setUnread] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Socket event-kulla latest value venum, adhanaala refs
+  const activeChatRef = useRef(null);
+  const conversationsRef = useRef([]);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+  }, [activeChat]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  // Messages padichittom-nu backend-ku solluvom
+  const markAsRead = useCallback((conversationId) => {
+    fetch(`${API_URL}/messages/${conversationId}/read`, {
+      method: "PUT",
+      headers: authHeaders(),
+    }).catch(() => {});
+  }, []);
+
+  // MY CONVERSATIONS LOAD
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: authHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load conversations.");
+      }
+
+      setConversations(data);
+
+      // Last message innum padikkala-na unread = 1
+      setUnread((previous) => {
+        const next = { ...previous };
+
+        data.forEach((conversation) => {
+          if (next[conversation._id] !== undefined) return;
+
+          const last = conversation.lastMessage;
+
+          const isUnread =
+            last &&
+            String(last.sender?._id) !== String(myId) &&
+            !(last.readBy || []).some(
+              (item) => String(item.user) === String(myId)
+            );
+
+          next[conversation._id] = isUnread ? 1 : 0;
+        });
+
+        return next;
+      });
+    } catch (error) {
+      alert(error.message);
+    }
+  }, [myId]);
+
+  // OPEN A CHAT + LOAD ITS MESSAGES
+  const openChat = useCallback(
+    async (conversationId) => {
+      setActiveChat(conversationId);
+      setUnread((previous) => ({ ...previous, [conversationId]: 0 }));
+
+      try {
+        const response = await fetch(
+          `${API_URL}/messages/${conversationId}`,
+          { headers: authHeaders() }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load messages.");
+        }
+
+        setMessagesByChat((previous) => ({
+          ...previous,
+          [conversationId]: data,
+        }));
+
+        markAsRead(conversationId);
+      } catch (error) {
+        alert(error.message);
+      }
+    },
+    [markAsRead]
+  );
+
+  // Page open aagum pothu conversations load pannum
+  useEffect(() => {
+    loadConversations().finally(() => setLoading(false));
+  }, [loadConversations]);
+
+  // Contacts page-la Message click pannina, andha chat-a open pannum
+  useEffect(() => {
+    const target = location.state?.conversationId;
+
+    if (!target || loading) return;
+
+    const conversation = conversations.find((item) => item._id === target);
+
+    if (conversation) {
+      setActiveTab(conversation.type === "group" ? "Group" : "Personal");
+      openChat(target);
+    }
+
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // REAL-TIME: socket connect
+  useEffect(() => {
+    const token = localStorage.getItem("ameToken");
+
+    if (!token) return;
+
+    const socket = io(SERVER_URL, { auth: { token } });
+
+    // Vera oruthar message anuppina
+    socket.on("new-message", (incoming) => {
+      const conversationId = String(incoming.conversationId);
+
+      // Puthu conversation-na list-a thirumba load pannum
+      if (
+        !conversationsRef.current.some((item) => item._id === conversationId)
+      ) {
+        loadConversations();
+        return;
+      }
+
+      setMessagesByChat((previous) => {
+        const list = previous[conversationId];
+
+        if (!list || list.some((item) => item._id === incoming._id)) {
+          return previous;
+        }
+
+        return { ...previous, [conversationId]: [...list, incoming] };
+      });
+
+      setConversations((previous) =>
+        previous
+          .map((item) =>
+            item._id === conversationId
+              ? { ...item, lastMessage: incoming, updatedAt: incoming.createdAt }
+              : item
+          )
+          .sort(byUpdated)
+      );
+
+      if (activeChatRef.current === conversationId) {
+        markAsRead(conversationId);
+      } else {
+        setUnread((previous) => ({
+          ...previous,
+          [conversationId]: (previous[conversationId] || 0) + 1,
+        }));
+      }
+    });
+
+    // Naan anuppina message-a avanga padichaanga
+    socket.on("message-read", ({ messageId, conversationId, readBy, readAt }) => {
+      const chatId = String(conversationId);
+
+      setMessagesByChat((previous) => {
+        const list = previous[chatId];
+
+        if (!list) return previous;
+
+        return {
+          ...previous,
+          [chatId]: list.map((item) =>
+            item._id === String(messageId)
+              ? {
+                  ...item,
+                  readBy: [...(item.readBy || []), { user: readBy, readAt }],
+                }
+              : item
+          ),
+        };
+      });
+    });
+
+    return () => socket.disconnect();
+  }, [loadConversations, markAsRead]);
+
+  // SEND MESSAGE
+  const sendMessage = async (e) => {
+    e.preventDefault();
+
+    const text = message.trim();
+
+    if (!text || !activeChat) return;
 
     setMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/messages/${activeChat}`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ content: text }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to send message.");
+      }
+
+      const sent = result.data;
+
+      setMessagesByChat((previous) => ({
+        ...previous,
+        [activeChat]: [...(previous[activeChat] || []), sent],
+      }));
+
+      setConversations((previous) =>
+        previous
+          .map((item) =>
+            item._id === activeChat
+              ? { ...item, lastMessage: sent, updatedAt: sent.createdAt }
+              : item
+          )
+          .sort(byUpdated)
+      );
+    } catch (error) {
+      setMessage(text);
+      alert(error.message);
+    }
   };
 
-  const createChat = () => {
-    const name = window.prompt(
-      activeTab === "Personal"
-        ? "Enter contact name:"
-        : "Enter group name:"
-    );
+  const chatList = conversations.map((conversation) => ({
+    ...conversation,
+    info: getChatInfo(conversation, myId),
+  }));
 
-    if (!name || !name.trim()) return;
+  const filteredChats = chatList.filter((chat) => chat.info.type === activeTab);
 
-    const newChat = {
-      id: Date.now(),
-      name: name.trim(),
-      role: activeTab === "Personal" ? "New contact" : "Group · 1 member",
-      type: activeTab,
-      avatar: name.trim().slice(0, 2).toUpperCase(),
-      color: "blue",
-      lastMessage: "Start a conversation",
-      time: "Now",
-      online: false,
-      unread: 0,
-      messages: [],
-    };
+  const selectedChat = chatList.find((chat) => chat._id === activeChat);
 
-    setChats((previousChats) => [...previousChats, newChat]);
-    setActiveChat(newChat.id);
-  };
+  const selectedMessages = messagesByChat[activeChat] || [];
+
+  // Puthu message vandha keezha scroll aagum
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messagesByChat, activeChat]);
 
   return (
     <div className="messenger-page">
@@ -221,8 +429,18 @@ function Messenger() {
           </div>
         </div>
 
-        <div className="messenger-profile">
-          <div className="messenger-avatar profile-avatar">M</div>
+       <div className="messenger-profile">
+  <div className="messenger-avatar profile-avatar">
+    {currentUser?.profilePhoto ? (
+      <img
+        src={currentUser.profilePhoto}
+        alt="My Profile"
+        className="messenger-profile-image"
+      />
+    ) : (
+      currentUser?.username?.charAt(0).toUpperCase() || "M"
+    )}
+  </div>
           <div className="profile-info">
             <h4>My Account</h4>
             <p>
@@ -246,22 +464,14 @@ function Messenger() {
         <div className="messenger-tabs">
           <button
             className={activeTab === "Personal" ? "active" : ""}
-            onClick={() => {
-              setActiveTab("Personal");
-              const first = chats.find((chat) => chat.type === "Personal");
-              if (first) setActiveChat(first.id);
-            }}
+            onClick={() => setActiveTab("Personal")}
           >
             <FaUser /> Personal
           </button>
 
           <button
             className={activeTab === "Group" ? "active" : ""}
-            onClick={() => {
-              setActiveTab("Group");
-              const first = chats.find((chat) => chat.type === "Group");
-              if (first) setActiveChat(first.id);
-            }}
+            onClick={() => setActiveTab("Group")}
           >
             <FaUsers /> Groups
           </button>
@@ -276,34 +486,45 @@ function Messenger() {
           {filteredChats.map((chat) => (
             <button
               className={`messenger-contact ${
-                activeChat === chat.id ? "selected" : ""
+                activeChat === chat._id ? "selected" : ""
               }`}
-              key={chat.id}
-              onClick={() => setActiveChat(chat.id)}
+              key={chat._id}
+              onClick={() => openChat(chat._id)}
             >
-              <div className={`messenger-avatar avatar-${chat.color}`}>
-                {chat.avatar}
-                {chat.online && <span className="avatar-online"></span>}
-              </div>
+              <div className={`messenger-avatar avatar-${chat.info.color}`}>
+  {chat.info.profilePhoto ? (
+    <img
+      src={chat.info.profilePhoto}
+      alt={chat.info.name}
+      className="messenger-user-photo"
+    />
+  ) : (
+    chat.info.avatar
+  )}
+</div>
 
               <div className="contact-details">
                 <div className="contact-top">
-                  <h4>{chat.name}</h4>
-                  <span>{chat.time}</span>
+                  <h4>{chat.info.name}</h4>
+                  <span>{formatTime(chat.lastMessage?.createdAt)}</span>
                 </div>
-                <p>{chat.lastMessage}</p>
-                <small>{chat.role}</small>
+                <p>{getPreview(chat, myId)}</p>
+                <small>{chat.info.role}</small>
               </div>
 
-              {chat.unread > 0 && (
-                <span className="unread-count">{chat.unread}</span>
+              {unread[chat._id] > 0 && (
+                <span className="unread-count">{unread[chat._id]}</span>
               )}
             </button>
           ))}
 
-          {filteredChats.length === 0 && (
-            <p className="empty-chats">No conversations yet.</p>
+          {!loading && filteredChats.length === 0 && (
+            <p className="empty-chats">
+              No conversations yet. Add a contact and start chatting.
+            </p>
           )}
+
+          {loading && <p className="empty-chats">Loading conversations...</p>}
         </div>
 
         <div className="messenger-sidebar-footer">
@@ -323,27 +544,24 @@ function Messenger() {
               >
                 <FaArrowLeft />
               </button>
-
-              <div
-                className={`messenger-avatar avatar-${selectedChat.color}`}
-              >
-                {selectedChat.avatar}
-                {selectedChat.online && <span className="avatar-online"></span>}
-              </div>
+ 
+ <div
+  className={`messenger-avatar avatar-${selectedChat.info.color}`}
+>
+  {selectedChat.info.profilePhoto ? (
+    <img
+      src={selectedChat.info.profilePhoto}
+      alt={selectedChat.info.name}
+      className="messenger-user-photo"
+    />
+  ) : (
+    selectedChat.info.avatar
+  )}
+</div>
 
               <div className="chat-header-info">
-                <h3>{selectedChat.name}</h3>
-                <p>
-                  {selectedChat.type === "Group" ? (
-                    selectedChat.role
-                  ) : selectedChat.online ? (
-                    <>
-                      <span className="online-dot"></span> Online
-                    </>
-                  ) : (
-                    "Offline"
-                  )}
-                </p>
+                <h3>{selectedChat.info.name}</h3>
+                <p>{selectedChat.info.role}</p>
               </div>
 
               <div className="chat-header-actions">
@@ -371,30 +589,39 @@ function Messenger() {
             </div>
 
             <section className="chat-messages">
-              {selectedChat.messages.map((msg) => (
-                <div
-                  className={`message-row ${msg.sent ? "sent" : "received"}`}
-                  key={msg.id}
-                >
-                  {!msg.sent && selectedChat.type === "Group" && (
-                    <span className="group-sender">
-                      {msg.sender || selectedChat.name}
-                    </span>
-                  )}
+              {selectedMessages.map((msg) => {
+                const sent = String(msg.sender?._id) === String(myId);
 
-                  <div className="message-bubble">
-                    <p>{msg.text}</p>
-                    <span className="message-time">
-                      {msg.time} {msg.sent && "✓✓"}
-                    </span>
+                const seen = (msg.readBy || []).some(
+                  (item) => String(item.user) !== String(myId)
+                );
+
+                return (
+                  <div
+                    className={`message-row ${sent ? "sent" : "received"}`}
+                    key={msg._id}
+                  >
+                    {!sent && selectedChat.info.type === "Group" && (
+                      <span className="group-sender">
+                        {msg.sender?.username}
+                      </span>
+                    )}
+
+                    <div className="message-bubble">
+                      <p>{msg.content || msg.fileName || "Attachment"}</p>
+                      <span className="message-time">
+                        {formatMessageTime(msg.createdAt)}{" "}
+                        {sent && (seen ? "✓✓" : "✓")}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
-              {selectedChat.messages.length === 0 && (
+              {selectedMessages.length === 0 && (
                 <div className="empty-conversation">
                   <div className="empty-chat-icon">
-                    {selectedChat.type === "Group" ? (
+                    {selectedChat.info.type === "Group" ? (
                       <FaUsers />
                     ) : (
                       <FaUser />
@@ -404,6 +631,8 @@ function Messenger() {
                   <p>Send a message to get things started.</p>
                 </div>
               )}
+
+              <div ref={messagesEndRef} />
             </section>
 
             <form className="chat-input-area" onSubmit={sendMessage}>

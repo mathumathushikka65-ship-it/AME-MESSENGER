@@ -1,17 +1,30 @@
+
 /* Import font from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Common website styles */
+
+/* =====================================
+   LIGHT THEME - DEFAULT
+===================================== */
+
 :root {
   /* Website colors */
   --primary-color: #2f5bff;
   --secondary-color: #0f172a;
   --accent-color: #38bdf8;
-  --background-color: #FFFFFF;
-  --white-color: #FFFFFF;
-  --text-color:#0f172a ;
-  --text-light:  #475569;
+
+  --background-color: #ffffff;
+  --white-color: #ffffff;
+
+  --text-color: #0f172a;
+  --text-light: #475569;
+
   --border-color: #e2e8f0;
+
+  --card-background: #ffffff;
+  --input-background: #f8fafc;
+  --sidebar-background: #ffffff;
+
   --error-color: #EF4444;
   --success-color: #22C55E;
 
@@ -19,41 +32,94 @@
   --main-font: 'Inter', sans-serif;
 }
 
-/* Reset default browser styles */
+
+/* =====================================
+   DARK THEME
+===================================== */
+
+[data-theme="dark"] {
+  --primary-color: #60a5fa;
+  --secondary-color: #0f172a;
+  --accent-color: #38bdf8;
+
+  --background-color: #0f172a;
+  --white-color: #1e293b;
+
+  --text-color: #f1f5f9;
+  --text-light: #cbd5e1;
+
+  --border-color: #334155;
+
+  --card-background: #1e293b;
+  --input-background: #334155;
+  --sidebar-background: #172033;
+
+  --error-color: #f87171;
+  --success-color: #4ade80;
+}
+
+
+/* =====================================
+   RESET DEFAULT BROWSER STYLES
+===================================== */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-img{
-     max-width: 100%;
-     height: auto;
+
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
-/* Common body styles */
+
+/* =====================================
+   COMMON BODY STYLES
+===================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--main-font);
   background-color: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
 
-/* Common button styles */
+
+/* =====================================
+   COMMON BUTTON STYLES
+===================================== */
+
 button {
   font-family: inherit;
   cursor: pointer;
 }
 
-/* Common link styles */
+
+/* =====================================
+   COMMON LINK STYLES
+===================================== */
+
 a {
   color: var(--primary-color);
   text-decoration: none;
 }
-/* Smooth scroll for navbar links */
-html {
-  scroll-behavior: smooth;
-}
-/* Common input styles */
+
+
+/* =====================================
+   COMMON INPUT STYLES
+===================================== */
+
 input,
 textarea,
 select {
@@ -61,7 +127,11 @@ select {
   font-size: 16px;
 }
 
-/* Common container */
+
+/* =====================================
+   COMMON CONTAINER
+===================================== */
+
 .container {
   width: 100%;
   max-width: 1200px;
@@ -69,8 +139,12 @@ select {
   padding: 20px;
 }
 
-/* Common primary button */
- .primary-button {
+
+/* =====================================
+   COMMON PRIMARY BUTTON
+===================================== */
+
+.primary-button {
   background-color: var(--primary-color);
   color: var(--white-color);
   border: none;
@@ -84,10 +158,33 @@ select {
 
 .primary-button:hover {
   background-color: var(--secondary-color);
-} 
+}
 
-.logo-image{
+
+/* =====================================
+   LOGO IMAGE
+===================================== */
+
+.logo-image {
   width: 40px;
   height: 40px;
   object-fit: contain;
 }
+
+
+/* =====================================
+   GLOBAL THEME TRANSITION
+===================================== */
+
+body,
+button,
+input,
+textarea,
+select,
+a {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+

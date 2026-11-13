@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
- 
+
 const reminderSchema = new mongoose.Schema(
   {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "", trim: true },
     category: {
@@ -20,7 +21,7 @@ const reminderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
- 
+
 // Frontend "id" use pannuthu, so _id-ah id-ah maathrom
 reminderSchema.set("toJSON", {
   transform: (doc, ret) => {
@@ -30,5 +31,5 @@ reminderSchema.set("toJSON", {
     return ret;
   },
 });
- 
+
 module.exports = mongoose.model("Reminder", reminderSchema);

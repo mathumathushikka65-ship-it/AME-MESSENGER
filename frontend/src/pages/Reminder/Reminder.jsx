@@ -32,48 +32,12 @@ const getDate = (days = 0) => {
   return `${year}-${month}-${day}`;
 };
 
-const initialReminders = [
-  {
-    id: 1,
-    title: "Submit React Assignment",
-    description: "Complete the React project and upload the final files.",
-    category: "Assignment",
-    date: getDate(1),
-    time: "10:00",
-    priority: "High",
-    completed: false,
-  },
-  {
-    id: 2,
-    title: "Database Management Exam",
-    description: "Revise SQL queries, ER diagrams and database concepts.",
-    category: "Exam",
-    date: getDate(3),
-    time: "09:30",
-    priority: "High",
-    completed: false,
-  },
-  {
-    id: 3,
-    title: "Project Team Meeting",
-    description: "Discuss AME Messenger project progress with the team.",
-    category: "Meeting",
-    date: getDate(0),
-    time: "15:00",
-    priority: "Medium",
-    completed: false,
-  },
-  {
-    id: 4,
-    title: "Read Chapter 5",
-    description: "Complete the reading task for the programming module.",
-    category: "Study",
-    date: getDate(-1),
-    time: "11:00",
-    priority: "Low",
-    completed: true,
-  },
-];
+const API_URL = "http://localhost:5001/api/reminders";
+
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("ametoken")}`,
+});
 
 const emptyForm = {
   title: "",
@@ -110,7 +74,7 @@ const getDateLabel = (date) => {
 };
 
 export default function Reminder() {
-  const [reminders, setReminders] = useState(initialReminders);
+  const [reminders, setReminders] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -128,6 +92,22 @@ export default function Reminder() {
 
   // Already alert kaatina reminders-oda ids
   const alertedIds = useRef(new Set());
+
+  // Page open aagum pothu DB-la irundhu login user-oda reminders load pannum
+  useEffect(() => {
+    const loadReminders = async () => {
+      try {
+        const res = await fetch(API_URL, { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setReminders(data);
+      } catch (error) {
+        showToast(error.message);
+      }
+    };
+
+    loadReminders();
+  }, []);
 
   // Notification permission kekkum
   useEffect(() => {
@@ -236,7 +216,7 @@ export default function Reminder() {
     setEditingId(null);
   };
 
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event.preventDefault();
 
     if (!form.title.trim() || !form.date || !form.time) {
@@ -244,57 +224,84 @@ export default function Reminder() {
       return;
     }
 
-    if (editingId) {
-      setReminders((previous) =>
-        previous.map((item) =>
-          item.id === editingId ? { ...item, ...form } : item
-        )
-      );
-      showToast("Reminder updated successfully.");
-    } else {
-      const newReminder = {
-        ...form,
-        id: Date.now(),
-        completed: false,
-      };
+    try {
+      if (editingId) {
+        const res = await fetch(`${API_URL}/${editingId}`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
 
-      setReminders((previous) => [newReminder, ...previous]);
-      showToast("Reminder created successfully.");
+        setReminders((previous) =>
+          previous.map((item) => (item.id === editingId ? data : item))
+        );
+        showToast("Reminder updated successfully.");
+      } else {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+
+        setReminders((previous) => [data, ...previous]);
+        showToast("Reminder created successfully.");
+      }
+
+      closeModal();
+    } catch (error) {
+      showToast(error.message);
     }
-
-    closeModal();
   };
 
-  const toggleComplete = (id) => {
-    setReminders((previous) =>
-      previous.map((item) =>
-        item.id === id
-          ? { ...item, completed: !item.completed }
-          : item
-      )
-    );
+  const toggleComplete = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/${id}/toggle`, {
+        method: "PATCH",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
 
-    const reminder = reminders.find((item) => item.id === id);
+      setReminders((previous) =>
+        previous.map((item) => (item.id === id ? data : item))
+      );
 
-    showToast(
-      reminder?.completed
-        ? "Reminder marked as pending."
-        : "Reminder completed!"
-    );
+      showToast(
+        data.completed
+          ? "Reminder completed!"
+          : "Reminder marked as pending."
+      );
+    } catch (error) {
+      showToast(error.message);
+    }
   };
 
-  const deleteReminder = (id) => {
+  const deleteReminder = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this reminder?"
     );
 
     if (!confirmed) return;
 
-    setReminders((previous) =>
-      previous.filter((item) => item.id !== id)
-    );
+    try {
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
 
-    showToast("Reminder deleted.");
+      setReminders((previous) =>
+        previous.filter((item) => item.id !== id)
+      );
+      showToast("Reminder deleted.");
+    } catch (error) {
+      showToast(error.message);
+    }
   };
 
   const getPriorityClass = (priority) => {
@@ -351,13 +358,13 @@ export default function Reminder() {
           </a>
         </nav>
 
-        <div className="reminders-sidebar-profile">
+        {/* <div className="reminders-sidebar-profile">
           <div className="reminders-avatar">K</div>
           <div>
             <strong>Kavitha</strong>
             <small>Student</small>
           </div>
-        </div>
+        </div> */}
       </aside>
 
       {/* MAIN CONTENT */}

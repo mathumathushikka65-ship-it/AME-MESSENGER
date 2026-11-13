@@ -1,6 +1,14 @@
 
-import React, { useState } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+
+import Cropper from "react-easy-crop";
 import "./Setting.css";
+import { useTheme } from "../../context/ThemeContext";
 
 import {
   FaUserCircle,
@@ -25,6 +33,115 @@ import {
   FaEnvelope,
 } from "react-icons/fa";
 
+const defaultSettings = {
+  lastSeen: true,
+  profilePhoto: true,
+  readReceipts: true,
+  onlineStatus: true,
+  messageNotifications: true,
+  groupNotifications: true,
+  assignmentNotifications: true,
+  reminderNotifications: true,
+  notificationSound: true,
+  desktopNotifications: true,
+  enterToSend: false,
+  mediaAutoDownload: false,
+  twoFactor: false,
+  groupInvitations: true,
+};
+
+// LOAD IMAGE
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+
+// CROP AND ROTATE IMAGE
+const getCroppedPhotoBlob = async (
+  imageSrc,
+  pixelCrop,
+  rotation = 0
+) => {
+  const image = await createImage(imageSrc);
+
+  const radians = (rotation * Math.PI) / 180;
+
+  const sin = Math.abs(Math.sin(radians));
+  const cos = Math.abs(Math.cos(radians));
+
+  const rotatedWidth =
+    image.width * cos + image.height * sin;
+
+  const rotatedHeight =
+    image.width * sin + image.height * cos;
+
+  const rotatedCanvas = document.createElement("canvas");
+
+  rotatedCanvas.width = Math.round(rotatedWidth);
+  rotatedCanvas.height = Math.round(rotatedHeight);
+
+  const rotatedContext = rotatedCanvas.getContext("2d");
+
+  if (!rotatedContext) {
+    throw new Error("Unable to process image.");
+  }
+
+  rotatedContext.translate(
+    rotatedCanvas.width / 2,
+    rotatedCanvas.height / 2
+  );
+
+  rotatedContext.rotate(radians);
+
+  rotatedContext.drawImage(
+    image,
+    -image.width / 2,
+    -image.height / 2
+  );
+
+  // FINAL CROPPED IMAGE
+  const outputCanvas = document.createElement("canvas");
+
+  outputCanvas.width = 512;
+  outputCanvas.height = 512;
+
+  const outputContext = outputCanvas.getContext("2d");
+
+  if (!outputContext) {
+    throw new Error("Unable to crop image.");
+  }
+
+  outputContext.drawImage(
+    rotatedCanvas,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    512,
+    512
+  );
+
+  return new Promise((resolve, reject) => {
+    outputCanvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("Image cropping failed."));
+        }
+      },
+      "image/jpeg",
+      0.92
+    );
+  });
+};
+
 export default function SettingsPage() {
   const currentUser = JSON.parse(
     localStorage.getItem("ameUser") || "null"
@@ -42,25 +159,147 @@ export default function SettingsPage() {
 
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const [settings, setSettings] = useState({
-    lastSeen: true,
-    profilePhoto: true,
-    readReceipts: true,
-    onlineStatus: true,
-    messageNotifications: true,
-    groupNotifications: true,
-    assignmentNotifications: true,
-    reminderNotifications: true,
-    notificationSound: true,
-    desktopNotifications: true,
-    enterToSend: false,
-    mediaAutoDownload: false,
-    twoFactor: false,
-    groupInvitations: true,
+  // PROFILE PHOTO STATES
+  const [profilePhoto, setProfilePhoto] = useState(
+    currentUser?.profilePhoto || ""
+  );
+
+  const [previewPhoto, setPreviewPhoto] = useState(
+    currentUser?.profilePhoto || ""
+  );
+
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const fileInputRef = useRef(null);
+
+  // PROFILE PHOTO CROP EDITOR STATES
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+
+  const [cropImage, setCropImage] = useState("");
+
+  const [crop, setCrop] = useState({
+    x: 0,
+    y: 0,
   });
 
-  const [theme, setTheme] = useState("Light");
+  const [zoom, setZoom] = useState(1);
+
+  const [rotation, setRotation] = useState(0);
+
+  const [croppedAreaPixels, setCroppedAreaPixels] =
+    useState(null);
+
+  // SAVE CROP AREA
+  const onCropComplete = useCallback(
+    (croppedArea, croppedAreaPixels) => {
+      setCroppedAreaPixels(croppedAreaPixels);
+    },
+    []
+  );
+
+  const [settings, setSettings] = useState(defaultSettings);
+  const { theme, setTheme } = useTheme();
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const firstSave = useRef(true);
   const [search, setSearch] = useState("");
+
+  // LOAD SAVED SETTINGS FROM BACKEND
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const token = localStorage.getItem("ameToken");
+
+      if (!token) {
+        alert("Please login again.");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "http://localhost:5001/api/settings",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Unable to fetch settings"
+          );
+        }
+
+        setSettings({
+          ...defaultSettings,
+          ...(data.settings || {}),
+        });
+
+        setTheme(data.theme || "Light");
+        setSettingsLoaded(true);
+      } catch (error) {
+        console.error("Fetch Settings Error:", error);
+        alert(error.message || "Unable to load settings");
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // SAVE SETTINGS AND THEME AUTOMATICALLY
+  useEffect(() => {
+    if (!settingsLoaded) return;
+
+    if (firstSave.current) {
+      firstSave.current = false;
+      return;
+    }
+
+    const saveTimer = setTimeout(async () => {
+      const token = localStorage.getItem("ameToken");
+
+      if (!token) {
+        console.error(
+          "Settings could not be saved: login token missing."
+        );
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "http://localhost:5001/api/settings",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              settings,
+              theme,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Settings update failed"
+          );
+        }
+
+        console.log("Settings saved successfully");
+      } catch (error) {
+        console.error("Save Settings Error:", error);
+        alert(error.message || "Unable to save settings");
+      }
+    }, 500);
+
+    return () => clearTimeout(saveTimer);
+  }, [settings, theme, settingsLoaded]);
 
   const menuItems = [
     { name: "Profile", icon: <FaUser /> },
@@ -89,6 +328,218 @@ export default function SettingsPage() {
     }));
   };
 
+  // OPEN IMAGE SELECTOR
+  const handleCameraClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // SELECT IMAGE AND OPEN CROP EDITOR
+  const handleProfilePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size must be less than 5MB.");
+      e.target.value = "";
+      return;
+    }
+
+    // RELEASE PREVIOUS TEMPORARY IMAGE URL
+    if (cropImage) {
+      URL.revokeObjectURL(cropImage);
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+
+    setCropImage(imageUrl);
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+    setRotation(0);
+    setCroppedAreaPixels(null);
+
+    setCropModalOpen(true);
+
+    // Allows selecting the same image again
+    e.target.value = "";
+  };
+
+  // CANCEL CROP
+  const handleCancelCrop = () => {
+    if (uploadingPhoto) return;
+
+    if (cropImage) {
+      URL.revokeObjectURL(cropImage);
+    }
+
+    setCropImage("");
+    setCropModalOpen(false);
+    setCroppedAreaPixels(null);
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+    setRotation(0);
+  };
+
+  // CROP AND UPLOAD PROFILE PHOTO
+  const handleSaveCroppedPhoto = async () => {
+    if (!cropImage || !croppedAreaPixels) {
+      alert("Please adjust your profile photo.");
+      return;
+    }
+
+    const token = localStorage.getItem("ameToken");
+
+    if (!token) {
+      alert("Please login again.");
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      // STEP 1: CREATE CROPPED IMAGE
+      const croppedBlob = await getCroppedPhotoBlob(
+        cropImage,
+        croppedAreaPixels,
+        rotation
+      );
+
+      if (!croppedBlob) {
+        throw new Error("Image cropping failed.");
+      }
+
+      // STEP 2: UPLOAD CROPPED IMAGE TO CLOUDINARY
+      const formData = new FormData();
+
+      formData.append(
+        "file",
+        croppedBlob,
+        "profile-photo.jpg"
+      );
+
+      const uploadResponse = await fetch(
+        "http://localhost:5001/api/upload",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const uploadData = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        throw new Error(
+          uploadData.message || "Image upload failed"
+        );
+      }
+
+      const uploadedImageUrl = uploadData.data?.fileUrl;
+      const publicId = uploadData.data?.publicId;
+
+      if (!uploadedImageUrl) {
+        throw new Error("Image URL was not returned.");
+      }
+
+      // STEP 3: SAVE PROFILE PHOTO IN MONGODB
+      const profileResponse = await fetch(
+        "http://localhost:5001/api/auth/profile",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            username: profile.name,
+            email: profile.email,
+            about: profile.about,
+            phone: profile.phone,
+            profilePhoto: uploadedImageUrl,
+            profilePhotoPublicId: publicId,
+          }),
+        }
+      );
+
+      const profileData = await profileResponse.json();
+
+      if (!profileResponse.ok) {
+        throw new Error(
+          profileData.message || "Profile photo save failed"
+        );
+      }
+
+      // STEP 4: UPDATE LOCAL STORAGE
+      const savedUser =
+        profileData.user ||
+        JSON.parse(localStorage.getItem("ameUser") || "null") ||
+        {};
+
+      const updatedUser = {
+        ...savedUser,
+        profilePhoto: uploadedImageUrl,
+        profilePhotoPublicId: publicId,
+      };
+
+      localStorage.setItem(
+        "ameUser",
+        JSON.stringify(updatedUser)
+      );
+
+      window.dispatchEvent(new Event("ameUserUpdated"));
+
+      // STEP 5: UPDATE PROFILE PHOTO DISPLAY
+      setProfilePhoto(uploadedImageUrl);
+      setPreviewPhoto(uploadedImageUrl);
+
+      // CLOSE CROP EDITOR
+      URL.revokeObjectURL(cropImage);
+
+      setCropImage("");
+      setCropModalOpen(false);
+      setCroppedAreaPixels(null);
+
+      setCrop({
+        x: 0,
+        y: 0,
+      });
+
+      setZoom(1);
+      setRotation(0);
+
+      alert("Profile picture updated successfully!");
+
+    } catch (error) {
+      console.error("Cropped Profile Photo Error:", error);
+
+      alert(
+        error.message || "Unable to upload profile picture."
+      );
+
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // SAVE PROFILE INFORMATION
   const handleSaveProfile = async () => {
     if (!profile.name.trim() || !profile.email.trim()) {
       alert("Please enter your name and email.");
@@ -118,6 +569,7 @@ export default function SettingsPage() {
             email: profile.email,
             about: profile.about,
             phone: profile.phone,
+            profilePhoto,
           }),
         }
       );
@@ -125,18 +577,33 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Profile update failed");
+        throw new Error(
+          data.message || "Profile update failed"
+        );
       }
 
-      localStorage.setItem("ameUser", JSON.stringify(data.user));
+      const updatedUser = {
+        ...data.user,
+        profilePhoto: data.user.profilePhoto || profilePhoto,
+      };
+
+      localStorage.setItem(
+        "ameUser",
+        JSON.stringify(updatedUser)
+      );
+
+      window.dispatchEvent(new Event("ameUserUpdated"));
 
       setProfile({
-        name: data.user.username,
-        email: data.user.email,
-        role: data.user.role,
-        about: data.user.about || "",
-        phone: data.user.phone || "",
+        name: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        about: updatedUser.about || "",
+        phone: updatedUser.phone || "",
       });
+
+      setProfilePhoto(updatedUser.profilePhoto || "");
+      setPreviewPhoto(updatedUser.profilePhoto || "");
 
       alert("Profile updated successfully!");
     } catch (error) {
@@ -146,12 +613,14 @@ export default function SettingsPage() {
     }
   };
 
+  // LOGOUT
   const handleLogout = () => {
     localStorage.removeItem("ameToken");
     localStorage.removeItem("ameUser");
     window.location.href = "/Login";
   };
 
+  // SETTINGS TOGGLE
   const SettingToggle = ({ label, description, settingKey }) => (
     <div className="setting-option">
       <div className="setting-option-info">
@@ -173,6 +642,7 @@ export default function SettingsPage() {
     </div>
   );
 
+  // SETTINGS CONTENT
   const renderContent = () => {
     switch (activeTab) {
       case "Profile":
@@ -185,15 +655,46 @@ export default function SettingsPage() {
 
             <div className="profile-card">
               <div className="profile-photo">
-                <FaUserCircle />
-                <button type="button" title="Change photo">
+                {previewPhoto ? (
+                  <img
+                    src={previewPhoto}
+                    alt="Profile"
+                    className="profile-photo-image"
+                  />
+                ) : (
+                  <FaUserCircle />
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleProfilePhotoChange}
+                  style={{ display: "none" }}
+                />
+
+                <button
+                  type="button"
+                  title="Change photo"
+                  onClick={handleCameraClick}
+                  disabled={uploadingPhoto}
+                >
                   <FaCamera />
                 </button>
               </div>
 
+              {uploadingPhoto && (
+                <p className="photo-upload-status">
+                  Uploading profile picture...
+                </p>
+              )}
+
               <h3>{profile.name}</h3>
               <p>{profile.email}</p>
-              <span className="profile-role">{profile.role}</span>
+
+              <span className="profile-role">
+                {profile.role}
+              </span>
             </div>
 
             <div className="settings-card">
@@ -477,6 +978,7 @@ export default function SettingsPage() {
 
               <div className="storage-info">
                 <FaDatabase />
+
                 <div>
                   <h3>Storage Management</h3>
                   <p>View and manage your media and files.</p>
@@ -530,6 +1032,7 @@ export default function SettingsPage() {
 
             <div className="settings-card">
               <h3>Accessibility Options</h3>
+
               <p>
                 Accessibility preferences can be added here, including
                 text size and contrast controls.
@@ -588,7 +1091,12 @@ export default function SettingsPage() {
     <div className="ame-settings-page">
       <aside className="settings-sidebar">
         <div className="settings-brand">
-      <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
+          <img
+            src="/102893.jpg"
+            alt="AME Logo"
+            className="logo-image"
+          />
+
           <div>
             <h2>AME</h2>
             <span>MESSENGER</span>
@@ -602,6 +1110,7 @@ export default function SettingsPage() {
 
         <div className="settings-search">
           <FaSearch />
+
           <input
             type="text"
             placeholder="Search settings..."
@@ -629,7 +1138,16 @@ export default function SettingsPage() {
 
         <div className="settings-sidebar-bottom">
           <div className="sidebar-user">
-            <FaUserCircle />
+            {profilePhoto ? (
+              <img
+                src={profilePhoto}
+                alt="Profile"
+                className="sidebar-profile-image"
+              />
+            ) : (
+              <FaUserCircle />
+            )}
+
             <div>
               <h4>{profile.name}</h4>
               <p>{profile.role}</p>
@@ -653,6 +1171,7 @@ export default function SettingsPage() {
             <h2>{activeTab}</h2>
           </div>
 
+          {/* TOPBAR DEFAULT USER ICON */}
           <div className="settings-top-icon">
             <FaUserCircle />
           </div>
@@ -662,6 +1181,129 @@ export default function SettingsPage() {
           {renderContent()}
         </div>
 
+        {/* PROFILE PHOTO CROP EDITOR MODAL */}
+        {cropModalOpen && cropImage && (
+          <div className="crop-modal-overlay">
+            <div className="crop-modal-content">
+
+              <div className="crop-modal-header">
+                <h3>Adjust Profile Photo</h3>
+
+                <button
+                  type="button"
+                  onClick={handleCancelCrop}
+                  disabled={uploadingPhoto}
+                  aria-label="Close crop editor"
+                >
+                  ×
+                </button>
+              </div>
+
+              <p className="crop-description">
+                Drag, zoom and rotate your photo to get
+                the perfect profile picture.
+              </p>
+
+              <div className="cropper-container">
+                <Cropper
+                  image={cropImage}
+                  crop={crop}
+                  zoom={zoom}
+                  rotation={rotation}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onRotationChange={setRotation}
+                  onCropComplete={onCropComplete}
+                  minZoom={1}
+                  maxZoom={3}
+                />
+              </div>
+
+              <div className="crop-control-group">
+                <label>Zoom</label>
+
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) =>
+                    setZoom(Number(e.target.value))
+                  }
+                />
+
+                <span>{zoom.toFixed(2)}x</span>
+              </div>
+
+              <div className="crop-rotate-section">
+                <label>Rotate Photo</label>
+
+                <div className="crop-rotate-buttons">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRotation((prev) => prev - 90)
+                    }
+                  >
+                    ↶ Rotate Left
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRotation((prev) => prev + 90)
+                    }
+                  >
+                    ↷ Rotate Right
+                  </button>
+                </div>
+
+                <input
+                  type="range"
+                  min="-180"
+                  max="180"
+                  step="1"
+                  value={rotation}
+                  onChange={(e) =>
+                    setRotation(Number(e.target.value))
+                  }
+                />
+
+                <span>{rotation}°</span>
+              </div>
+
+              <div className="crop-modal-actions">
+                <button
+                  type="button"
+                  className="crop-cancel-btn"
+                  onClick={handleCancelCrop}
+                  disabled={uploadingPhoto}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="crop-save-btn"
+                  onClick={handleSaveCroppedPhoto}
+                  disabled={
+                    !croppedAreaPixels || uploadingPhoto
+                  }
+                >
+                  {uploadingPhoto
+                    ? "Uploading..."
+                    : "Use Photo"}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
         <footer className="settings-footer">
           <span>© 2026 AME MESSENGER</span>
           <span>Designed for better communication.</span>
@@ -670,6 +1312,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-
-

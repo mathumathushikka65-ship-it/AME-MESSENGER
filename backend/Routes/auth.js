@@ -72,7 +72,8 @@ router.post('/signup', async (req, res) => {
                 id: newUser._id,
                 username: newUser.username,
                 email: newUser.email,
-                role: newUser.role
+                role: newUser.role,
+                profilePhoto: newUser.profilePhoto || ""
             }
         });
 
@@ -148,12 +149,13 @@ router.post('/login', async (req, res) => {
         res.status(200).json({
             message: 'Login successful',
             token,
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            }
+           user: {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    profilePhoto: user.profilePhoto || ""
+}
         });
 
     } catch (error) {
@@ -171,7 +173,14 @@ router.post('/login', async (req, res) => {
 // UPDATE USER PROFILE
 router.put('/profile', authMiddleware, async (req, res) => {
     try {
-        const { username, about, phone ,email } = req.body;
+        const {
+            username,
+            about,
+            phone,
+            email,
+            profilePhoto,
+            profilePhotoPublicId
+        } = req.body;
 
         if (!username || !username.trim()) {
             return res.status(400).json({
@@ -185,14 +194,29 @@ router.put('/profile', authMiddleware, async (req, res) => {
             });
         }
 
+        // Update fields
+        const updateData = {
+            username: username.trim(),
+            about: about?.trim() || "",
+            phone: phone?.trim() || ""
+        };
+
+        if (email !== undefined) {
+            updateData.email = email.trim().toLowerCase();
+        }
+
+        // Update profile picture only when provided
+        if (profilePhoto !== undefined) {
+            updateData.profilePhoto = profilePhoto;
+        }
+
+        if (profilePhotoPublicId !== undefined) {
+            updateData.profilePhotoPublicId = profilePhotoPublicId;
+        }
+
         const updatedUser = await User.findByIdAndUpdate(
             req.userId,
-            {
-                username: username.trim(),
-                  email: email?.trim().toLowerCase(),
-                about: about?.trim() || "",
-                phone: phone?.trim() || ""
-            },
+            { $set: updateData },
             {
                 new: true,
                 runValidators: true
@@ -213,9 +237,11 @@ router.put('/profile', authMiddleware, async (req, res) => {
     } catch (error) {
         if (error.code === 11000) {
             return res.status(409).json({
-                message: "This username is already taken"
+                message: "This username or email is already taken"
             });
         }
+
+        console.error("Profile Update Error:", error.message);
 
         res.status(500).json({
             message: "Unable to update profile",

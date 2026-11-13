@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaHome,
@@ -18,14 +17,34 @@ import {
 } from "react-icons/fa";
 import "./Home.css";
 
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("ameUser") || "null");
+  } catch {
+    return null;
+  }
+};
+
 function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(
-    localStorage.getItem("ameUser") || "null"
-  );
+ const [currentUser, setCurrentUser] = useState(getStoredUser);
+
+useEffect(() => {
+  const updateUser = () => {
+    setCurrentUser(getStoredUser());
+  };
+
+  window.addEventListener("ameUserUpdated", updateUser);
+  window.addEventListener("storage", updateUser);
+
+  return () => {
+    window.removeEventListener("ameUserUpdated", updateUser);
+    window.removeEventListener("storage", updateUser);
+  };
+}, []);
 
   const features = [
     {
@@ -231,9 +250,17 @@ function Home() {
           </div>
 
           <div className="header-profile">
-            <Link to="/Setting" className="profile-avatar">
-              {currentUser?.username?.charAt(0).toUpperCase() || "A"}
-            </Link>
+           <Link to="/Setting" className="profile-avatar">
+  {currentUser?.profilePhoto ? (
+    <img
+      src={currentUser.profilePhoto}
+      alt="Profile"
+      className="home-profile-image"
+    />
+  ) : (
+    currentUser?.username?.charAt(0).toUpperCase() || "A"
+  )}
+</Link>
 
             <div className="profile-details">
               <strong>

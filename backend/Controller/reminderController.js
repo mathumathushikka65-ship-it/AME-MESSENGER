@@ -1,20 +1,19 @@
 const mongoose = require("mongoose");
 const Reminder = require("../models/reminder");
 
-// Valid MongoDB id check  helper
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-// GET /api/reminders  
+// GET /api/reminders
 exports.getReminders = async (req, res) => {
   try {
-    const reminders = await Reminder.find().sort({ date: 1, time: 1 });
+    const reminders = await Reminder.find({ user: req.userId }).sort({ date: 1, time: 1 });
     res.json(reminders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// POST /api/reminders  -> new reminder create
+// POST /api/reminders
 exports.createReminder = async (req, res) => {
   try {
     const { title, description, category, date, time, priority } = req.body;
@@ -26,6 +25,7 @@ exports.createReminder = async (req, res) => {
     }
 
     const reminder = await Reminder.create({
+      user: req.userId,
       title,
       description,
       category,
@@ -40,7 +40,7 @@ exports.createReminder = async (req, res) => {
   }
 };
 
-// PUT /api/reminders/:id  -> reminder edit
+// PUT /api/reminders/:id
 exports.updateReminder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -51,8 +51,8 @@ exports.updateReminder = async (req, res) => {
 
     const { title, description, category, date, time, priority } = req.body;
 
-    const reminder = await Reminder.findByIdAndUpdate(
-      id,
+    const reminder = await Reminder.findOneAndUpdate(
+      { _id: id, user: req.userId },
       { title, description, category, date, time, priority },
       { new: true, runValidators: true }
     );
@@ -67,7 +67,7 @@ exports.updateReminder = async (req, res) => {
   }
 };
 
-// PATCH 
+// PATCH /api/reminders/:id/toggle
 exports.toggleReminder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -76,7 +76,7 @@ exports.toggleReminder = async (req, res) => {
       return res.status(400).json({ message: "Invalid reminder id." });
     }
 
-    const reminder = await Reminder.findById(id);
+    const reminder = await Reminder.findOne({ _id: id, user: req.userId });
 
     if (!reminder) {
       return res.status(404).json({ message: "Reminder not found." });
@@ -91,7 +91,7 @@ exports.toggleReminder = async (req, res) => {
   }
 };
 
-// DELETE /api/reminders/:id  -> reminder delete
+// DELETE /api/reminders/:id
 exports.deleteReminder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -100,7 +100,7 @@ exports.deleteReminder = async (req, res) => {
       return res.status(400).json({ message: "Invalid reminder id." });
     }
 
-    const reminder = await Reminder.findByIdAndDelete(id);
+    const reminder = await Reminder.findOneAndDelete({ _id: id, user: req.userId });
 
     if (!reminder) {
       return res.status(404).json({ message: "Reminder not found." });

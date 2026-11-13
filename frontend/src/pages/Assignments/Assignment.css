@@ -1369,5 +1369,474 @@
   }
 }
 
+/* ===== Assignment attachments: indha code-a Assignment.css-oda kadaisila paste pannunga ===== */
 
+/* Link input + Add button */
+.link-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.link-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Attachment preview grid */
+.attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.attachment-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.attachment-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  overflow: hidden;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 32px;
+}
+
+.attachment-thumb img,
+.attachment-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-thumb.kind-pdf {
+  color: #dc2626;
+}
+
+.attachment-thumb.kind-youtube {
+  color: #ef4444;
+}
+
+.attachment-thumb.kind-drive {
+  color: #16a34a;
+}
+
+.attachment-thumb.kind-website {
+  color: #2563eb;
+}
+
+.attachment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.attachment-info strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-info small {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.attachment-info a {
+  color: #2563eb;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.attachment-info a:hover {
+  text-decoration: underline;
+}
+
+/* Remove (X) button */
+.attachment-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.75);
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.attachment-remove:hover {
+  background: #dc2626;
+}
+
+/* Attachments athigam irundha modal scroll aaganum */
+.assignment-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* =========================================
+   ASSIGNMENTS - PURE BLACK DARK THEME
+   Original icons, buttons and welcome banner
+   colors are preserved.
+========================================= */
+
+/* Main Page */
+[data-theme="dark"] .assignments-page {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* Sidebar */
+[data-theme="dark"] .assignments-sidebar {
+  background: #000000;
+  border-right-color: #262626;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .sidebar-label {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .sidebar-menu a {
+  color: #d4d4d4;
+}
+
+[data-theme="dark"] .sidebar-menu a:hover,
+[data-theme="dark"] .sidebar-menu a.active {
+  /* Keep original active blue color */
+  color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-profile {
+  border-top-color: #333333;
+}
+
+[data-theme="dark"] .sidebar-profile strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-profile small {
+  color: #a3a3a3;
+}
+
+/* Main Content */
+[data-theme="dark"] .assignments-main {
+  background: #000000;
+}
+
+/* Header */
+[data-theme="dark"] .breadcrumb {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .assignments-header h1 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .assignments-header > div:first-child > p:last-child {
+  color: #bdbdbd;
+}
+
+/* Role Switch */
+[data-theme="dark"] .role-switch {
+  background: #171717;
+}
+
+[data-theme="dark"] .role-switch button {
+  color: #d4d4d4;
+}
+
+/* Keep active role button original white and blue */
+[data-theme="dark"] .role-switch button.active {
+  background: #ffffff;
+  color: #2563ff;
+}
+
+/* Secondary Buttons */
+[data-theme="dark"] .secondary-btn {
+  border-color: #404040;
+  background: #111111;
+  color: #e5e5e5;
+}
+
+[data-theme="dark"] .secondary-btn:hover {
+  background: #1a1a1a;
+}
+
+/* Welcome Banner intentionally unchanged */
+
+/* Statistics Cards */
+[data-theme="dark"] .stat-card {
+  background: #000000;
+  border-color: #333333;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .stat-card p {
+  color: #bdbdbd;
+}
+
+[data-theme="dark"] .stat-card h2 {
+  color: #ffffff;
+}
+
+/* Do not change .stat-icon colors */
+
+/* Assignment Section */
+[data-theme="dark"] .assignment-section {
+  background: #000000;
+  border-color: #333333;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .section-heading h2 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .section-heading p {
+  color: #bdbdbd;
+}
+
+/* Search Box */
+[data-theme="dark"] .search-box {
+  background: #111111;
+  border-color: #404040;
+  color: #d4d4d4;
+}
+
+[data-theme="dark"] .search-box input {
+  background: transparent;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .search-box input::placeholder {
+  color: #a3a3a3;
+}
+
+/* Filter Select */
+[data-theme="dark"] .assignment-filters select {
+  background: #111111;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .assignment-filters select option {
+  background: #111111;
+  color: #ffffff;
+}
+
+/* Assignment Cards */
+[data-theme="dark"] .assignment-card {
+  background: #000000;
+  border-color: #333333;
+}
+
+[data-theme="dark"] .assignment-card:hover {
+  border-color: #525252;
+  box-shadow: 0 8px 22px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .assignment-card h3 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .assignment-description {
+  color: #bdbdbd;
+}
+
+[data-theme="dark"] .assignment-meta {
+  border-top-color: #333333;
+  border-bottom-color: #333333;
+  color: #bdbdbd;
+}
+
+/* Keep subject-label and its original blue colors */
+
+/* Submission Information */
+[data-theme="dark"] .submission-count {
+  color: #bdbdbd;
+}
+
+[data-theme="dark"] .submission-list {
+  border-top-color: #333333;
+}
+
+[data-theme="dark"] .submission-list h4 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .submission-item {
+  background: #111111;
+}
+
+[data-theme="dark"] .submission-item strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .submission-item small {
+  color: #a3a3a3;
+}
+
+/* Keep review button original colors */
+
+/* Empty State */
+[data-theme="dark"] .empty-state {
+  color: #bdbdbd;
+}
+
+[data-theme="dark"] .empty-state h3 {
+  color: #ffffff;
+}
+
+/* Modal */
+[data-theme="dark"] .assignment-modal {
+  background: #000000;
+  border: 1px solid #333333;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .modal-header h2 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .modal-header p {
+  color: #bdbdbd;
+}
+
+/* Form */
+[data-theme="dark"] .form-group label {
+  color: #e5e5e5;
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group textarea,
+[data-theme="dark"] .form-group select {
+  background: #111111;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .form-group input::placeholder,
+[data-theme="dark"] .form-group textarea::placeholder {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .form-group input[type="file"] {
+  background: #111111;
+}
+
+[data-theme="dark"] .helper-text {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .modal-actions {
+  border-top-color: #333333;
+}
+
+/* Details Modal */
+[data-theme="dark"] .details-content {
+  color: #d4d4d4;
+}
+
+[data-theme="dark"] .details-content > h2 {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .details-info > div,
+[data-theme="dark"] .submission-preview {
+  background: #111111;
+}
+
+[data-theme="dark"] .details-info small {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .details-info strong,
+[data-theme="dark"] .submission-preview strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .submission-preview p {
+  color: #bdbdbd;
+}
+
+/* Attachments */
+[data-theme="dark"] .attachment-upload-area {
+  background: #111111;
+  border-color: #404040;
+}
+
+[data-theme="dark"] .attachment-upload-area:hover {
+  background: #171717;
+}
+
+[data-theme="dark"] .attachment-item {
+  background: #111111;
+  border-color: #333333;
+}
+
+[data-theme="dark"] .attachment-item-info strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .attachment-item-info small {
+  color: #a3a3a3;
+}
+
+/* Keep attachment icons and their original colors */
+
+[data-theme="dark"] .attachment-link-input input {
+  background: #111111;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .attachment-helper {
+  color: #a3a3a3;
+}
+
+[data-theme="dark"] .attachment-empty {
+  background: #111111;
+  color: #bdbdbd;
+}
+
+/* Attachment Preview Cards */
+[data-theme="dark"] .attachment-card {
+  background: #000000;
+  border-color: #333333;
+}
+
+[data-theme="dark"] .attachment-thumb {
+  background: #171717;
+}
+
+[data-theme="dark"] .attachment-info strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .attachment-info small {
+  color: #a3a3a3;
+}
+
+/* Toast intentionally unchanged */
+
+/* Keep all original icon colors unchanged */
 

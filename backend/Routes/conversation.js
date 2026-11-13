@@ -99,12 +99,15 @@ router.get('/', authMiddleware, async (req, res) => {
         const conversations = await Conversation.find({
             participants: req.userId
         })
-            .populate('participants', 'username email')
+            .populate(
+    'participants',
+    'username email profilePhoto role isOnline'
+)
             .populate({
                 path: 'lastMessage',
                 populate: {
                     path: 'sender',
-                    select: 'username'
+                    select: 'username profilePhoto'
                 }
             })
             .sort({ updatedAt: -1 });

@@ -1,5 +1,7 @@
+
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { ThemeProvider } from "./context/ThemeContext";
 
 import Login from "./pages/loginpages/Login";
 import Signup from "./pages/signuppages/Signup";
@@ -19,39 +21,42 @@ import AdminRoute from "./components/AdminRoute";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
 
-        {/* Public Pages */}
-        <Route path="/" element={<IntroductionPage />} />
-        <Route path="/Login" element={<Login />} />
-        <Route path="/Signup" element={<Signup />} />
+          {/* Public Pages */}
+          <Route path="/" element={<IntroductionPage />} />
+          <Route path="/Login" element={<Login />} />
+          <Route path="/Signup" element={<Signup />} />
 
-        {/* Separate Admin Login */}
-        <Route path="/AdminLogin" element={<AdminLogin />} />
+          {/* Separate Admin Login */}
+          <Route path="/AdminLogin" element={<AdminLogin />} />
 
-        {/* Normal User Protected Pages */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/Home" element={<Home />} />
-          <Route path="/Messenger" element={<Messenger />} />
-          <Route path="/Assignment" element={<Assignment />} />
-          <Route path="/Setting" element={<Setting />} />
-          <Route path="/Reminder" element={<Reminder />} />
-          <Route path="/Contact" element={<Contact />} />
-          <Route path="/DocumentCreation" element={<Document />} />
-        </Route>
+          {/* Normal User Protected Pages */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/Home" element={<Home />} />
+            <Route path="/Messenger" element={<Messenger />} />
+            <Route path="/Assignment" element={<Assignment />} />
+            <Route path="/Setting" element={<Setting />} />
+            <Route path="/Reminder" element={<Reminder />} />
+            <Route path="/Contact" element={<Contact />} />
+            <Route path="/DocumentCreation" element={<Document />} />
+          </Route>
 
-        {/* Admin Protected Page */}
-        <Route element={<AdminRoute />}>
-          <Route path="/Admin" element={<Admin />} />
-        </Route>
+          {/* Admin Protected Page */}
+          <Route element={<AdminRoute />}>
+            <Route path="/Admin" element={<Admin />} />
+          </Route>
 
-        {/* Unknown Route */}
-        <Route path="*" element={<h2>404 - Page Not Found</h2>} />
+          {/* Unknown Route */}
+          <Route path="*" element={<h2>404 - Page Not Found</h2>} />
 
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
 export default App;
+
