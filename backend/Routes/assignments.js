@@ -6,8 +6,11 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const Assignment = require('../models/Assignment');
+const User = require('../models/User');
+const Conversation = require('../models/Conversation');
 const authMiddleware = require('../Middleware/authMiddleware');
 const cloudinary = require('../config/cloudinary');
+const { sendAssignmentCards } = require('../utils/assignmentChat');
 
 // ---------------- ATTACHMENT SETTINGS ----------------
 const MAX_ATTACHMENTS = 10;
@@ -167,49 +170,117 @@ const parseLinks = (raw) => {
         .filter(Boolean);
 };
 
-// CREATE ASSIGNMENT
-router.post('/', authMiddleware, async (req, res) => {
-    try {
-        const {
-            title,
-            subject,
-            description,
-            dueDate,
-            priority,
-            status,
-            attachmentUrl,
-            totalMarks
-        } = req.body;
-
-        if (!title || !subject || !dueDate) {
-            return res.status(400).json({
-                message: 'Title, subject and due date are required'
-            });
-        }
-
-        const assignment = await Assignment.create({
-            user: req.userId,
-            title,
-            subject,
-            description,
-            dueDate,
-            priority,
-            status,
-            attachmentUrl,
-            totalMarks
-        });
-
-        res.status(201).json({
-            message: 'Assignment created successfully',
-            assignment
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            message: 'Failed to create assignment',
-            error: error.message
-        });
+// Role helper: authorization is enforced by the API, not only by the UI.
+const requireRole = async (req, res, allowed) => {
+    const user = await User.findById(req.userId).select('role');
+    if (!user || !allowed.includes(user.role)) {
+        res.status(403).json({ message: 'You do not have permission to perform this action.' });
+        return false;
     }
+    req.userRole = user.role;
+    return true;
+};
+
+// Teacher-ku ellam; student-ku avanoda own submission mattum
+const forViewer = (assignment, userId) => {
+    const data = assignment.toObject();
+    const isOwner = String(data.user?._id || data.user) === String(userId);
+
+    if (isOwner) return data;
+
+    data.submissions = (data.submissions || []).filter(
+        (item) => String(item.student?._id || item.student) === String(userId)
+    );
+    delete data.recipients;
+
+    return data;
+};
+
+// CREATE ASSIGNMENT (teachers only; supports teacher attachments and recipient IDs)
+router.post('/', authMiddleware, (req, res) => {
+    upload.array('files', MAX_ATTACHMENTS)(req, res, async (uploadError) => {
+        if (uploadError) {
+            return res.status(400).json({ message: uploadErrorMessage(uploadError) });
+        }
+        try {
+            if (!(await requireRole(req, res, ['teacher']))) return;
+
+            const { title, subject, description, dueDate, priority, status, totalMarks } = req.body;
+            if (!title || !subject || !dueDate) {
+                return res.status(400).json({ message: 'Title, subject and due date are required' });
+            }
+
+            const files = req.files || [];
+            const links = parseLinks(req.body.links);
+            if (files.length + links.length > MAX_ATTACHMENTS) {
+                return res.status(400).json({ message: `You can add up to ${MAX_ATTACHMENTS} attachments` });
+            }
+
+            let recipientIds = [];
+            try { recipientIds = JSON.parse(req.body.recipients || '[]'); } catch { recipientIds = []; }
+            if (!Array.isArray(recipientIds)) recipientIds = [];
+            recipientIds = [...new Set(recipientIds.map(String))];
+            // Groups: select panna group-la irukkura members-aiyum recipients-la serkkum
+            let groupIds = [];
+            try { groupIds = JSON.parse(req.body.groupIds || '[]'); } catch { groupIds = []; }
+            if (!Array.isArray(groupIds)) groupIds = [];
+            groupIds = [...new Set(groupIds.map(String))];
+
+            let groupConversations = [];
+            if (groupIds.length) {
+                // Teacher irukkura groups mattum
+                groupConversations = await Conversation.find({
+                    _id: { $in: groupIds }, type: 'group', participants: req.userId
+                }).select('_id participants');
+                if (groupConversations.length !== groupIds.length) {
+                    return res.status(400).json({ message: 'Invalid group selected.' });
+                }
+                groupConversations.forEach((group) => {
+                    group.participants.forEach((id) => recipientIds.push(String(id)));
+                });
+            }
+
+            // Teacher thannai thaane recipient-aa serkka koodathu
+            recipientIds = [...new Set(recipientIds)].filter((id) => id !== String(req.userId));
+
+            if (recipientIds.length) {
+                const validUsers = await User.find({ _id: { $in: recipientIds } }).select('_id');
+                if (validUsers.length !== recipientIds.length) {
+                    return res.status(400).json({ message: 'Some selected recipients are invalid.' });
+                }
+            }
+
+            const warnings = [];
+            const fileAttachments = await Promise.all(files.map(async (file) => {
+                const localPath = await saveLocal(file);
+                let cloud = {};
+                try { cloud = await saveCloud(file); }
+                catch (error) { warnings.push(`${file.originalname}: cloud backup failed`); }
+                return {
+                    type: 'file', kind: getFileKind(file.originalname), name: file.originalname,
+                    size: file.size, localPath, url: cloud.secure_url || '', publicId: cloud.public_id || ''
+                };
+            }));
+
+            const assignment = await Assignment.create({
+                user: req.userId, title, subject, description, dueDate, priority, status,
+                totalMarks, recipients: recipientIds, attachments: [...fileAttachments, ...links]
+            });
+
+            // Select panna students-oda personal chat-ku assignment card anuppum
+            await sendAssignmentCards({
+                io: req.app.get('io'),
+                assignment,
+                senderId: req.userId,
+                recipientIds,
+                groupConversations
+            });
+
+            return res.status(201).json({ message: 'Assignment created successfully', assignment, warnings });
+        } catch (error) {
+            return res.status(500).json({ message: 'Failed to create assignment', error: error.message });
+        }
+    });
 });
 
 
@@ -218,9 +289,11 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const { search, status, priority, sortBy } = req.query;
 
-        const filter = {
-            user: req.userId
-        };
+        const user = await User.findById(req.userId).select('role');
+        if (!user) return res.status(401).json({ message: 'User not found. Please login again.' });
+        const filter = user.role === 'teacher'
+            ? { user: req.userId }
+            : { $or: [{ recipients: req.userId }, { recipients: { $size: 0 } }, { user: req.userId }] };
 
         if (status) {
             filter.status = status;
@@ -231,10 +304,13 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         if (search) {
-            filter.$or = [
+            const searchCondition = { $or: [
                 { title: { $regex: search, $options: 'i' } },
                 { subject: { $regex: search, $options: 'i' } }
-            ];
+            ] };
+            if (filter.$or) filter.$and = [{ $or: filter.$or }, searchCondition];
+            else Object.assign(filter, searchCondition);
+            delete filter.$or;
         }
 
         const sortOptions = {
@@ -251,7 +327,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
         res.status(200).json({
             count: assignments.length,
-            assignments
+            assignments: assignments.map((item) => forViewer(item, req.userId))
         });
 
     } catch (error) {
@@ -266,10 +342,12 @@ router.get('/', authMiddleware, async (req, res) => {
 // GET SINGLE ASSIGNMENT
 router.get('/:id', authMiddleware, async (req, res) => {
     try {
-        const assignment = await Assignment.findOne({
-            _id: req.params.id,
-            user: req.userId
-        }).populate('submissions.student', 'username email');
+        const user = await User.findById(req.userId).select('role');
+        const accessFilter = user?.role === 'teacher'
+            ? { user: req.userId }
+            : { $or: [{ recipients: req.userId }, { recipients: { $size: 0 } }, { user: req.userId }] };
+        const assignment = await Assignment.findOne({ _id: req.params.id, ...accessFilter })
+            .populate('submissions.student', 'username email');
 
         if (!assignment) {
             return res.status(404).json({
@@ -277,7 +355,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
             });
         }
 
-        res.status(200).json({ assignment });
+        res.status(200).json({ assignment: forViewer(assignment, req.userId) });
 
     } catch (error) {
         res.status(500).json({
@@ -291,6 +369,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // UPDATE ASSIGNMENT
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
+        if (!(await requireRole(req, res, ['teacher']))) return;
         const allowedFields = [
             'title',
             'subject',
@@ -352,6 +431,7 @@ router.post('/:id/submit', authMiddleware, (req, res) => {
         }
 
         try {
+            if (!(await requireRole(req, res, ['student']))) return;
             const files = req.files || [];
             const links = parseLinks(req.body.links);
 
@@ -369,10 +449,8 @@ router.post('/:id/submit', authMiddleware, (req, res) => {
 
             const assignment = await Assignment.findById(req.params.id);
 
-            if (!assignment) {
-                return res.status(404).json({
-                    message: 'Assignment not found'
-                });
+            if (!assignment || (assignment.recipients?.length && !assignment.recipients.some(id => String(id) === String(req.userId)))) {
+                return res.status(404).json({ message: 'Assignment not found or not assigned to you' });
             }
 
             const warnings = [];
@@ -446,6 +524,14 @@ router.post('/:id/submit', authMiddleware, (req, res) => {
 
             await assignment.save();
 
+            // Teacher-ku real-time-la theriyappaduthum (data illa, refresh signal mattum)
+            const io = req.app.get('io');
+            if (io) {
+                io.to(`user:${assignment.user}`).emit('assignment-updated', {
+                    assignmentId: String(assignment._id)
+                });
+            }
+
             res.status(201).json({
                 message: 'Assignment submitted successfully',
                 submission,
@@ -467,6 +553,7 @@ router.post('/:id/submit', authMiddleware, (req, res) => {
 // TEACHER REVIEW SUBMISSION
 router.put('/:id/submissions/:submissionId/review', authMiddleware, async (req, res) => {
     try {
+        if (!(await requireRole(req, res, ['teacher']))) return;
         const { marks, feedback } = req.body;
 
         const assignment = await Assignment.findById(req.params.id);
@@ -519,6 +606,14 @@ router.put('/:id/submissions/:submissionId/review', authMiddleware, async (req, 
 
         await assignment.save();
 
+        // Andha student-ku mattum marks vandhuruchu nu signal anuppum
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user:${submission.student}`).emit('assignment-updated', {
+                assignmentId: String(assignment._id)
+            });
+        }
+
         res.status(200).json({
             message: 'Submission reviewed successfully',
             submission
@@ -536,6 +631,7 @@ router.put('/:id/submissions/:submissionId/review', authMiddleware, async (req, 
 // DELETE ASSIGNMENT
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
+        if (!(await requireRole(req, res, ['teacher']))) return;
         const assignment = await Assignment.findOneAndDelete({
             _id: req.params.id,
             user: req.userId

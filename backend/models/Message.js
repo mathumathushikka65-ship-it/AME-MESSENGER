@@ -16,7 +16,7 @@ const messageSchema = new mongoose.Schema({
 
     messageType: {
         type: String,
-        enum: ['text', 'image', 'file', 'voice', 'video'],
+        enum: ['text', 'image', 'file', 'voice', 'video', 'assignment'],
         default: 'text'
     },
 
@@ -34,6 +34,8 @@ const messageSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+
+    assignmentRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Assignment', default: null },
 
     // REPLY TO ANOTHER MESSAGE
     replyTo: {

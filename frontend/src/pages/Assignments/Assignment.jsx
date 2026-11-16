@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { io } from "socket.io-client";
 import API_URL from "../../services/api";
 import {
   FaHome,
@@ -225,6 +226,15 @@ function mapAssignment(item) {
     priority: item.priority || "Medium",
     status: item.status || "Pending",
     points: item.totalMarks || 100,
+    attachments: (item.attachments || []).map((attachment) => ({
+      id: attachment._id || makeId(),
+      type: attachment.type,
+      kind: attachment.kind,
+      name: attachment.name,
+      size: attachment.size,
+      url: attachment.type === "link" ? attachment.url : (attachment.localPath ? `${SERVER_URL}${attachment.localPath}` : attachment.url),
+      youtubeId: attachment.youtubeId,
+    })),
     submissions: (item.submissions || []).map((submission) => ({
       id: submission._id,
       studentId:
@@ -260,8 +270,12 @@ function mapAssignment(item) {
 }
 
 export default function Assignment() {
-   const [currentUser, setCurrentUser] = useState(null);
-   const [role, setRole] = useState("");
+   const [role] = useState(() => {
+     try {
+       const user = JSON.parse(localStorage.getItem("ameUser") || "null");
+       return user?.role === "teacher" ? "Teacher" : "Student";
+     } catch { return "Student"; }
+   });
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -286,6 +300,13 @@ export default function Assignment() {
   });
 
   const [linkInput, setLinkInput] = useState("");
+  const [teacherFiles, setTeacherFiles] = useState([]);
+  const [teacherLinks, setTeacherLinks] = useState([]);
+  const [teacherLinkInput, setTeacherLinkInput] = useState("");
+  const [availableStudents, setAvailableStudents] = useState([]);
+  const [recipientIds, setRecipientIds] = useState([]);
+  const [availableGroups, setAvailableGroups] = useState([]);
+  const [groupIds, setGroupIds] = useState([]);
 
   const [reviewForm, setReviewForm] = useState({
     marks: "",
@@ -332,6 +353,66 @@ export default function Assignment() {
   useEffect(() => {
     fetchAssignments();
   }, []);
+
+  // REAL-TIME: student submit pannina / teacher review pannina page thaanaave refresh aagum
+  useEffect(() => {
+    const token = localStorage.getItem("ameToken");
+
+    if (!token) return undefined;
+
+    const socket = io(SERVER_URL, { auth: { token } });
+
+    socket.on("assignment-updated", () => {
+      fetchAssignments();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // MESSENGER CARD CLICK: /Assignment?open=<assignmentId> vandha andha assignment details thirakkum
+  useEffect(() => {
+    if (loading) return;
+
+    const openId = new URLSearchParams(window.location.search).get("open");
+
+    if (!openId) return;
+
+    const target = assignments.find((item) => String(item.id) === openId);
+
+    if (target) {
+      setSelected(target);
+      setModal("details");
+    } else {
+      showToast("Assignment not found or not assigned to you.");
+    }
+
+    // Refresh pannina thirumba thirakkaama irukka URL-a clean pannum
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [loading, assignments]);
+
+  useEffect(() => {
+    if (role !== "Teacher") return;
+    const token = localStorage.getItem("ameToken");
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // Messenger-la add panna ellaa contacts
+    fetch(`${API_URL}/contacts`, { headers })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((contacts) => setAvailableStudents(
+        (contacts || []).map((contact) => contact.contactUser).filter(Boolean)
+      ))
+      .catch((error) => console.error("Unable to load contacts:", error));
+
+    // Teacher create panna / irukkura ellaa groups
+    fetch(`${API_URL}/conversations`, { headers })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((chats) => setAvailableGroups(
+        (chats || []).filter((chat) => chat.type === "group")
+      ))
+      .catch((error) => console.error("Unable to load groups:", error));
+  }, [role]);
 
   const currentUserId = getUserIdFromToken();
 
@@ -405,12 +486,19 @@ export default function Assignment() {
     });
 
     setSelected(null);
+    setTeacherFiles([]);
+    setTeacherLinks([]);
+    setTeacherLinkInput("");
+    setRecipientIds([]);
+    setGroupIds([]);
     setModal("create");
   };
 
   // EDIT ASSIGNMENT MODAL
   const openEditModal = (assignment) => {
     setSelected(assignment);
+    setTeacherFiles([]);
+    setTeacherLinks((assignment.attachments || []).filter((item) => item.type === "link").map((item) => ({ name: item.name, url: item.url })));
 
     setForm({
       title: assignment.title,
@@ -457,18 +545,22 @@ export default function Assignment() {
     try {
       const isEditing = modal === "edit";
 
+      const headers = { Authorization: `Bearer ${token}` };
+      let body;
+      if (isEditing) {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(assignmentData);
+      } else {
+        body = new FormData();
+        Object.entries({ ...assignmentData, totalMarks: form.points }).forEach(([key, value]) => body.append(key, value ?? ""));
+        body.append("links", JSON.stringify(teacherLinks));
+        body.append("recipients", JSON.stringify(recipientIds));
+        body.append("groupIds", JSON.stringify(groupIds));
+        teacherFiles.forEach((file) => body.append("files", file));
+      }
       const response = await fetch(
-        isEditing
-          ? `${API_URL}/assignments/${selected.id}`
-          : `${API_URL}/assignments`,
-        {
-          method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(assignmentData),
-        }
+        isEditing ? `${API_URL}/assignments/${selected.id}` : `${API_URL}/assignments`,
+        { method: isEditing ? "PUT" : "POST", headers, body }
       );
 
       const data = await response.json();
@@ -716,12 +808,13 @@ export default function Assignment() {
     }
   };
 
-  // TEACHER REVIEW - FRONTEND ONLY FOR NOW
+  // TEACHER REVIEW
   const openReviewModal = (assignment, submission) => {
     setSelected({
       assignmentId: assignment.id,
       submissionId: submission.id,
       assignmentTitle: assignment.title,
+      points: assignment.points,
       submission,
     });
 
@@ -733,42 +826,64 @@ export default function Assignment() {
     setModal("review");
   };
 
-  const saveReview = (event) => {
+  // REVIEW SAVE API: marks + feedback database-la save aagum
+  const saveReview = async (event) => {
     event.preventDefault();
 
     const marks = Number(reviewForm.marks);
+    const maxMarks = Number(selected.points) || 100;
 
     if (
       reviewForm.marks === "" ||
+      !Number.isFinite(marks) ||
       marks < 0 ||
-      marks > 100
+      marks > maxMarks
     ) {
-      showToast("Enter marks between 0 and 100.");
+      showToast(`Enter marks between 0 and ${maxMarks}.`);
       return;
     }
 
-    setAssignments((previous) =>
-      previous.map((assignment) =>
-        assignment.id === selected.assignmentId
-          ? {
-              ...assignment,
-              submissions: assignment.submissions.map((submission) =>
-                submission.id === selected.submissionId
-                  ? {
-                      ...submission,
-                      marks,
-                      feedback: reviewForm.feedback,
-                      status: "Reviewed",
-                    }
-                  : submission
-              ),
-            }
-          : assignment
-      )
-    );
+    const token = localStorage.getItem("ameToken");
 
-    setModal("");
-    showToast("Review saved in this session only.");
+    if (!token) {
+      showToast("Please login again.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/assignments/${selected.assignmentId}/submissions/${selected.submissionId}/review`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            marks,
+            feedback: reviewForm.feedback,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to save review.");
+      }
+
+      await fetchAssignments();
+
+      setModal("");
+      setSelected(null);
+      showToast("Review saved successfully!");
+    } catch (error) {
+      showToast(error.message || "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openDetails = (assignment) => {
@@ -849,25 +964,9 @@ export default function Assignment() {
           </div>
 
           <div className="header-actions">
-            <div className="role-switch">
-              <button
-                className={role === "Student" ? "active" : ""}
-                onClick={() => {
-                  setRole("Student");
-                  setFilter("All");
-                }}
-              >
-                Student
-              </button>
-
-              <button
-                className={role === "Teacher" ? "active" : ""}
-                onClick={() => {
-                  setRole("Teacher");
-                  setFilter("All");
-                }}
-              >
-                Teacher
+            <div className="role-switch" aria-label="Your account role">
+              <button className="active" type="button" disabled>
+                {role}
               </button>
             </div>
 
@@ -1039,6 +1138,9 @@ export default function Assignment() {
                     <p className="assignment-description">
                       {assignment.description}
                     </p>
+                    {assignment.attachments?.length > 0 && (
+                      <AttachmentList attachments={assignment.attachments} />
+                    )}
 
                     <div className="assignment-meta">
                       <span>
@@ -1242,6 +1344,86 @@ export default function Assignment() {
                 </div>
               </div>
 
+              {role === "Teacher" && (
+                <>
+                  <div className="form-group">
+                    <label>Send to (select contacts and groups)</label>
+                    <div className="recipient-picker" style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #ddd", borderRadius: 8, padding: 8 }}>
+                      <strong>Contacts</strong>
+                      {availableStudents.length === 0 && <p><small>No contacts yet.</small></p>}
+                      {availableStudents.map((person) => (
+                        <label key={person._id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
+                          <input
+                            type="checkbox"
+                            checked={recipientIds.includes(String(person._id))}
+                            onChange={(event) => setRecipientIds((previous) =>
+                              event.target.checked
+                                ? [...previous, String(person._id)]
+                                : previous.filter((id) => id !== String(person._id)))}
+                          />
+                          {person.username} ({person.email})
+                        </label>
+                      ))}
+                      <strong>Groups</strong>
+                      {availableGroups.length === 0 && <p><small>No groups yet.</small></p>}
+                      {availableGroups.map((group) => (
+                        <label key={group._id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
+                          <input
+                            type="checkbox"
+                            checked={groupIds.includes(String(group._id))}
+                            onChange={(event) => setGroupIds((previous) =>
+                              event.target.checked
+                                ? [...previous, String(group._id)]
+                                : previous.filter((id) => id !== String(group._id)))}
+                          />
+                          {group.groupName || "Group"} ({(group.participants || []).length} members)
+                        </label>
+                      ))}
+                    </div>
+                    <small className="helper-text">Contacts-um groups-um select pannalam. Edhuvum select pannalana class-wide assignment aagum.</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Attach images, videos or documents</label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                      onChange={(event) => {
+                        const accepted = Array.from(event.target.files || []).filter((file) => getFileKind(file));
+                        setTeacherFiles((previous) => [...previous, ...accepted].slice(0, MAX_ATTACHMENTS));
+                        event.target.value = "";
+                      }}
+                    />
+                    <small className="helper-text">Up to {MAX_ATTACHMENTS} attachments, 50 MB each.</small>
+                    {teacherFiles.map((file, index) => (
+                      <div className="link-input-row" key={`${file.name}-${index}`}>
+                        <span>{file.name}</span>
+                        <button type="button" className="secondary-btn" onClick={() => setTeacherFiles((items) => items.filter((_, i) => i !== index))}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="form-group">
+                    <label>Add website / YouTube / Google Drive link</label>
+                    <div className="link-input-row">
+                      <input value={teacherLinkInput} onChange={(event) => setTeacherLinkInput(event.target.value)} placeholder="https://..." />
+                      <button type="button" className="secondary-btn" onClick={() => {
+                        const url = normalizeLink(teacherLinkInput);
+                        if (!url) return showToast("Enter a valid link.");
+                        if (teacherLinks.length + teacherFiles.length >= MAX_ATTACHMENTS) return showToast(`Maximum ${MAX_ATTACHMENTS} attachments.`);
+                        setTeacherLinks((items) => [...items, { name: url.hostname, url: url.href }]);
+                        setTeacherLinkInput("");
+                      }}>Add link</button>
+                    </div>
+                    {teacherLinks.map((item, index) => (
+                      <div className="link-input-row" key={item.url}>
+                        <a href={item.url} target="_blank" rel="noreferrer">{item.name}</a>
+                        <button type="button" className="secondary-btn" onClick={() => setTeacherLinks((items) => items.filter((_, i) => i !== index))}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="modal-actions">
                 <button
                   type="button"
@@ -1408,11 +1590,11 @@ export default function Assignment() {
 
             <form className="assignment-form" onSubmit={saveReview}>
               <div className="form-group">
-                <label>Marks (out of 100) *</label>
+                <label>Marks (out of {selected.points}) *</label>
                 <input
                   type="number"
                   min="0"
-                  max="100"
+                  max={selected.points}
                   value={reviewForm.marks}
                   onChange={(event) =>
                     setReviewForm({
@@ -1447,8 +1629,8 @@ export default function Assignment() {
                   Cancel
                 </button>
 
-                <button type="submit" className="primary-btn">
-                  <FaCheckCircle /> Save Review
+                <button type="submit" className="primary-btn" disabled={saving}>
+                  <FaCheckCircle /> {saving ? "Saving..." : "Save Review"}
                 </button>
               </div>
             </form>

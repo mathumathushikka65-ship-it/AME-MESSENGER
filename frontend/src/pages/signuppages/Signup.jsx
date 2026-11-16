@@ -307,11 +307,8 @@ function Signup() {
               }}
             >
               <option value="">Choose your role</option>
-              <option value="student">School Student</option>
+              <option value="student">Student</option>
               <option value="teacher">Teacher</option>
-              <option value="university">University Student</option>
-              <option value="course-center">Course Center</option>
-              <option value="other">Other</option>
             </select>
 
           </div>
@@ -335,6 +332,9 @@ function Signup() {
 }
 
 export default Signup;
+
+
+
 
 
 

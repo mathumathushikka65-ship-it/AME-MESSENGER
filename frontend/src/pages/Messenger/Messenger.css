@@ -1325,4 +1325,314 @@
   background: var(--input-background);
   color: var(--text-color);
   border-color: var(--border-color);
+ }
+/* Keep selected-message actions in the fixed chat header toolbar. */
+.chat-header-actions.message-selection-actions {
+  gap: 7px;
+  flex-wrap: wrap;
 }
+.chat-header-actions.message-selection-actions button {
+  color: #4b5be8;
+  background: #f2f4ff;
+  border-color: #dfe4ff;
+}
+.chat-header-actions.message-selection-actions button:hover {
+  background: #e6eaff;
+}
+.message-row:has(.message-actions-menu) { z-index: 20; }
+.message-bubble:has(.message-actions-menu) { z-index: 21; }
+
+/* Assignment sharing from the chat composer */
+.assignment-share-menu {
+  position: absolute; bottom: 76px; left: 28px; z-index: 120;
+  width: min(360px, calc(100vw - 48px)); max-height: 340px; overflow-y: auto;
+  padding: 12px; border: 1px solid #e3e8f2; border-radius: 13px;
+  background: #fff; box-shadow: 0 12px 32px rgba(24, 42, 72, .18);
+}
+.assignment-share-menu > strong { display:block; margin: 3px 5px 9px; color:#24364d; font-size:13px; }
+.assignment-share-menu button { display:flex; flex-direction:column; gap:4px; width:100%; padding:10px; border:0; border-radius:8px; background:transparent; text-align:left; cursor:pointer; }
+.assignment-share-menu button:hover { background:#f1f5ff; }
+.assignment-share-menu button span { font-weight:700; color:#263b58; }
+.assignment-share-menu button small { color:#7c8ba3; }
+.chat-assignment-card { min-width:190px; padding:10px; border:1px solid #dbe5f5; border-radius:10px; background:#f7f9ff; color:#263b58; }
+.chat-assignment-card strong { color:#4b5be8; font-size:11px; }
+.chat-assignment-card h4 { margin:7px 0 3px; font-size:14px; }
+.chat-assignment-card p { margin:0 0 6px; font-size:12px; }
+.chat-assignment-card small { display:block; color:#7b8798; font-size:10px; }
+.chat-assignment-card button { margin-top:9px; padding:7px 10px; border:0; border-radius:7px; color:#fff; background:#4b5be8; cursor:pointer; font-size:11px; }
+
+
+/* =========================================
+   MEDIA ATTACHMENT MENU
+========================================= */
+
+.attachment-control,
+.emoji-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.attachment-menu {
+  position: absolute;
+  bottom: 55px;
+  left: 0;
+  z-index: 1000;
+  width: 205px;
+  padding: 9px;
+  background: #ffffff;
+  border: 1px solid #e1e6ed;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attachment-menu button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #263747;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+}
+
+.attachment-menu button:hover {
+  background: #edf4ff;
+  color: #2563eb;
+}
+
+.attachment-menu button svg {
+  font-size: 17px;
+}
+
+/* =========================================
+   IMAGE ATTACHMENT
+========================================= */
+
+.chat-image-attachment {
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-image-attachment a {
+  display: block;
+  line-height: 0;
+}
+
+.chat-image-attachment img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.chat-image-attachment small,
+.chat-video-attachment small {
+  font-size: 11px;
+  color: #718096;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   VIDEO ATTACHMENT
+========================================= */
+
+.chat-video-attachment {
+  width: 280px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-video-attachment video {
+  width: 100%;
+  max-height: 300px;
+  border-radius: 10px;
+  background: #000000;
+}
+
+/* =========================================
+   FILE / DOCUMENT ATTACHMENT
+========================================= */
+
+.chat-file-attachment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 190px;
+  max-width: 280px;
+  padding: 13px;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  background: #f5f8fc;
+  color: #263747;
+  text-decoration: none;
+}
+
+.chat-file-attachment > svg:first-child {
+  flex-shrink: 0;
+  font-size: 25px;
+  color: #2563eb;
+}
+
+.chat-file-attachment > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.chat-file-attachment > svg:last-child {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: #64748b;
+}
+
+.chat-file-attachment:hover {
+  background: #eaf2ff;
+  border-color: #93b4f5;
+}
+
+/* =========================================
+   EMOJI PICKER
+========================================= */
+
+.emoji-picker {
+  position: absolute;
+  bottom: 55px;
+  right: 0;
+  z-index: 1000;
+  width: 285px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #e1e6ed;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.emoji-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #263747;
+  font-size: 13px;
+}
+
+.emoji-picker-heading button {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.emoji-grid button {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 21px;
+}
+
+.emoji-grid button:hover {
+  background: #edf4ff;
+  transform: scale(1.1);
+}
+
+/* =========================================
+   UPLOADING INDICATOR
+========================================= */
+
+.uploading-indicator {
+  padding: 7px 15px;
+  text-align: center;
+  font-size: 12px;
+  color: #2563eb;
+  background: #edf4ff;
+}
+
+/* =========================================
+   DARK THEME SUPPORT
+========================================= */
+
+[data-theme="dark"] .attachment-menu,
+[data-theme="dark"] .emoji-picker {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .attachment-menu button,
+[data-theme="dark"] .emoji-picker-heading {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .attachment-menu button:hover,
+[data-theme="dark"] .emoji-grid button:hover {
+  background: #334155;
+}
+
+[data-theme="dark"] .chat-file-attachment {
+  background: #263449;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .chat-file-attachment:hover {
+  background: #334155;
+}
+
+[data-theme="dark"] .uploading-indicator {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+/* =========================================
+   MOBILE RESPONSIVE
+========================================= */
+
+@media (max-width: 600px) {
+  .attachment-menu {
+    width: 190px;
+  }
+
+  .emoji-picker {
+    width: min(285px, calc(100vw - 35px));
+    right: -45px;
+  }
+
+  .chat-image-attachment {
+    max-width: 220px;
+  }
+
+  .chat-video-attachment {
+    width: 220px;
+  }
+
+  .chat-file-attachment {
+    max-width: 220px;
+    min-width: 150px;
+  }
+} 

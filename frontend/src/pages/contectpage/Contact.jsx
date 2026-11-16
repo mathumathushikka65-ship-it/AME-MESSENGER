@@ -64,6 +64,17 @@ export default function Contact() {
 
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // GROUP LIST
+  const [groups, setGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [groupListSearch, setGroupListSearch] = useState("");
+
+  // GROUP MEMBERS VIEW
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [openingMemberId, setOpeningMemberId] = useState(null);
+
   const [saving, setSaving] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
@@ -78,8 +89,9 @@ export default function Contact() {
 
   const [toastMessage, setToastMessage] = useState("");
   const [openingContactId, setOpeningContactId] = useState(null);
+  const [openingGroupId, setOpeningGroupId] = useState(null);
 
-  // WHATSAPP-STYLE GROUP CREATION
+  // GROUP CREATION
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
@@ -109,7 +121,7 @@ export default function Contact() {
     };
   }, []);
 
-  // LOAD CONTACTS FROM DATABASE
+  // LOAD CONTACTS
   useEffect(() => {
     const loadContacts = async () => {
       try {
@@ -134,6 +146,43 @@ export default function Contact() {
     };
 
     loadContacts();
+  }, []);
+
+  // LOAD GROUPS
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const response = await fetch(`${API_URL}/conversations`, {
+          headers: authHeaders()
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load groups.");
+        }
+
+        const conversations = Array.isArray(data)
+          ? data
+          : Array.isArray(data.conversations)
+            ? data.conversations
+            : [];
+
+        const groupConversations = conversations.filter(
+          (conversation) => conversation.type === "group"
+        );
+
+        setGroups(groupConversations);
+
+      } catch (error) {
+        console.error("Load groups error:", error);
+
+      } finally {
+        setGroupsLoading(false);
+      }
+    };
+
+    loadGroups();
   }, []);
 
   // HANDLE FORM INPUT
@@ -177,7 +226,6 @@ export default function Contact() {
         throw new Error(data.message || "Unable to save contact.");
       }
 
-      // UPDATE CONTACT LIST WITHOUT DUPLICATES
       setContacts((previous) => {
         if (editingId) {
           return dedupeContacts(
@@ -255,7 +303,7 @@ export default function Contact() {
     }
   };
 
-  // OPEN EXISTING CHAT OR CREATE NEW CHAT
+  // OPEN PERSONAL CHAT
   const startChat = async (contact) => {
     const contactUserId = contact.contactUser?._id;
 
@@ -281,6 +329,10 @@ export default function Contact() {
         throw new Error(data.message || "Unable to open chat.");
       }
 
+      if (!data._id) {
+        throw new Error("Personal conversation ID was not returned.");
+      }
+
       navigate("/Messenger", {
         state: {
           conversationId: data._id
@@ -292,6 +344,72 @@ export default function Contact() {
 
     } finally {
       setOpeningContactId(null);
+    }
+  };
+
+  // OPEN GROUP CHAT
+  const startGroupChat = (group) => {
+    if (!group?._id || openingGroupId) return;
+
+    setOpeningGroupId(group._id);
+
+    navigate("/Messenger", {
+      state: {
+        conversationId: group._id
+      }
+    });
+  };
+
+  // VIEW GROUP MEMBERS
+  const viewGroupMembers = (group) => {
+    setSelectedGroup(group);
+    setShowMembersModal(true);
+  };
+
+  // OPEN GROUP MEMBER PERSONAL CHAT
+  const startMemberPersonalChat = async (member) => {
+    const memberId =
+      typeof member === "object" ? member?._id : member;
+
+    if (!memberId || openingMemberId) return;
+
+    try {
+      setOpeningMemberId(String(memberId));
+
+      const response = await fetch(
+        `${API_URL}/conversations/personal`,
+        {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            userId: memberId
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to open personal chat.");
+      }
+
+      if (!data._id) {
+        throw new Error("Personal conversation ID was not returned.");
+      }
+
+      setShowMembersModal(false);
+
+      navigate("/Messenger", {
+        state: {
+          conversationId: data._id
+        }
+      });
+
+    } catch (error) {
+      alert(error.message);
+
+    } finally {
+      setOpeningMemberId(null);
     }
   };
 
@@ -359,6 +477,15 @@ export default function Contact() {
         );
       }
 
+      // ADD NEW GROUP TO LIST
+      setGroups((previous) => [
+        createdConversation,
+        ...previous.filter(
+          (group) =>
+            String(group._id) !== String(createdConversation._id)
+        )
+      ]);
+
       setShowGroupForm(false);
       setGroupName("");
       setGroupSearch("");
@@ -366,7 +493,6 @@ export default function Contact() {
 
       showToast("Group created successfully! Opening group chat...");
 
-      // OPEN NEW GROUP IN MESSENGER
       window.setTimeout(() => {
         navigate("/Messenger", {
           state: {
@@ -392,7 +518,7 @@ export default function Contact() {
       .includes(search.toLowerCase().trim())
   );
 
-  // FILTER GROUP MEMBERS
+  // FILTER GROUP MEMBERS FOR CREATION
   const filteredGroupContacts = contacts.filter((contact) => {
     const displayName =
       contact.nickname || contact.contactUser?.username || "";
@@ -404,6 +530,13 @@ export default function Contact() {
       .toLowerCase()
       .includes(query);
   });
+
+  // FILTER MY GROUPS
+  const filteredGroups = groups.filter((group) =>
+    (group.groupName || group.name || "")
+      .toLowerCase()
+      .includes(groupListSearch.toLowerCase().trim())
+  );
 
   // ONLINE CONTACT COUNT
   const onlineCount = contacts.filter(
@@ -592,7 +725,6 @@ export default function Contact() {
               filteredContacts.map((contact) => (
                 <div className="contact-item" key={contact._id}>
 
-                  {/* CONTACT PROFILE PHOTO */}
                   <div className="contact-avatar">
                     {contact.contactUser?.profilePhoto ? (
                       <img
@@ -605,7 +737,6 @@ export default function Contact() {
                     )}
                   </div>
 
-                  {/* CONTACT INFORMATION */}
                   <div className="contact-details">
 
                     <h3>
@@ -627,16 +758,11 @@ export default function Contact() {
 
                   </div>
 
-                  {/* CONTACT ACTIONS */}
                   <div className="contact-actions">
 
                     <button
                       type="button"
-                      title={
-                        openingContactId === contact._id
-                          ? "Opening chat..."
-                          : "Message"
-                      }
+                      title="Message"
                       disabled={openingContactId === contact._id}
                       onClick={() => startChat(contact)}
                     >
@@ -667,6 +793,277 @@ export default function Contact() {
 
           </div>
         </div>
+
+        {/* MY GROUPS LIST */}
+        <div className="my-groups-container">
+
+          <div className="my-groups-header">
+
+            <div>
+              <h2>
+                <FaUsers /> My Groups
+              </h2>
+
+              <p>
+                Your created and joined group conversations
+              </p>
+            </div>
+
+            <div className="group-list-search">
+              <FaSearch />
+
+              <input
+                type="search"
+                placeholder="Search groups..."
+                value={groupListSearch}
+                onChange={(e) => setGroupListSearch(e.target.value)}
+              />
+            </div>
+
+          </div>
+
+          <div className="my-groups-list">
+
+            {groupsLoading ? (
+              <div className="empty-groups">
+                <FaUsers />
+                <h3>Loading groups...</h3>
+              </div>
+
+            ) : filteredGroups.length === 0 ? (
+              <div className="empty-groups">
+                <FaUsers />
+
+                <h3>
+                  {groups.length === 0
+                    ? "No groups yet"
+                    : "No groups found"}
+                </h3>
+
+                <p>
+                  {groups.length === 0
+                    ? "Create a group to start conversations with multiple people."
+                    : "Try searching with another group name."}
+                </p>
+
+                {groups.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={openGroupForm}
+                    disabled={contacts.length === 0}
+                  >
+                    <FaUsers /> Create Your First Group
+                  </button>
+                )}
+              </div>
+
+            ) : (
+              filteredGroups.map((group) => (
+                <div
+                  className="group-contact-item"
+                  key={group._id}
+                  onClick={() => viewGroupMembers(group)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      viewGroupMembers(group);
+                    }
+                  }}
+                  title="View group members"
+                >
+
+                  <span className="group-contact-avatar">
+
+                    {group.groupImage ? (
+                      <img
+                        src={group.groupImage}
+                        alt={group.groupName || "Group"}
+                      />
+                    ) : (
+                      <FaUsers />
+                    )}
+
+                  </span>
+
+                  <span className="group-contact-details">
+
+                    <strong>
+                      {group.groupName || group.name || "Unnamed Group"}
+                    </strong>
+
+                    <small>
+                      <FaUsers />
+                      {" "}
+                      {Array.isArray(group.participants)
+                        ? `${group.participants.length} members`
+                        : "Group conversation"}
+                    </small>
+
+                  </span>
+
+                  <button
+                    type="button"
+                    className="group-contact-action"
+                    title="Open group chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startGroupChat(group);
+                    }}
+                  >
+                    <FaComments />
+                  </button>
+
+                </div>
+              ))
+            )}
+
+          </div>
+        </div>
+
+        {/* GROUP MEMBERS MODAL */}
+        {showMembersModal && selectedGroup && (
+          <div
+            className="group-modal-overlay"
+            onClick={() => setShowMembersModal(false)}
+          >
+
+            <div
+              className="group-members-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="group-members-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+
+              <div className="group-modal-header">
+
+                <div>
+                  <h2 id="group-members-title">
+                    {selectedGroup.groupName ||
+                      selectedGroup.name ||
+                      "Group Members"}
+                  </h2>
+
+                  <p>
+                    {selectedGroup.participants?.length || 0} members in this group
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="group-modal-close"
+                  onClick={() => setShowMembersModal(false)}
+                  aria-label="Close members"
+                >
+                  <FaTimes />
+                </button>
+
+              </div>
+
+              <div className="group-members-list">
+
+                {Array.isArray(selectedGroup.participants) &&
+                selectedGroup.participants.length > 0 ? (
+
+                  selectedGroup.participants.map((member, index) => {
+
+                    const memberId =
+                      typeof member === "object"
+                        ? member?._id
+                        : member;
+
+                    const displayName =
+                      typeof member === "object"
+                        ? member.username ||
+                          member.name ||
+                          member.email ||
+                          "Unknown User"
+                        : "Group Member";
+
+                    const memberEmail =
+                      typeof member === "object"
+                        ? member.email || "AME Messenger member"
+                        : "Member details unavailable";
+
+                    const profilePhoto =
+                      typeof member === "object"
+                        ? member.profilePhoto
+                        : null;
+
+                    return (
+                      <div
+                        className="group-member-view-item"
+                        key={memberId || index}
+                      >
+
+                        <div className="group-member-view-avatar">
+
+                          {profilePhoto ? (
+                            <img
+                              src={profilePhoto}
+                              alt={displayName}
+                            />
+                          ) : (
+                            <FaUserCircle />
+                          )}
+
+                        </div>
+
+                        <div className="group-member-view-details">
+                          <strong>{displayName}</strong>
+                          <small>{memberEmail}</small>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="member-personal-chat-btn"
+                          onClick={() =>
+                            startMemberPersonalChat(member)
+                          }
+                          disabled={
+                            !memberId ||
+                            openingMemberId === String(memberId)
+                          }
+                          title="Open personal chat"
+                        >
+                          <FaComments />
+
+                          {openingMemberId === String(memberId)
+                            ? "Opening..."
+                            : "Message"}
+                        </button>
+
+                      </div>
+                    );
+                  })
+
+                ) : (
+                  <div className="group-no-members">
+                    No group members found.
+                  </div>
+                )}
+
+              </div>
+
+              <div className="group-members-footer">
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMembersModal(false);
+                    startGroupChat(selectedGroup);
+                  }}
+                >
+                  <FaComments /> Open Group Chat
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* ADD / EDIT CONTACT MODAL */}
         {showForm && (
@@ -960,6 +1357,3 @@ export default function Contact() {
     </div>
   );
 }
-
-
-

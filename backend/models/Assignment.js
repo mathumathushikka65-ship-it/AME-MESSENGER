@@ -126,6 +126,9 @@ const assignmentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Students who received this assignment from the teacher.
+  recipients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  attachments: [attachmentSchema],
   submissions: [submissionSchema]
 }, {
   timestamps: true

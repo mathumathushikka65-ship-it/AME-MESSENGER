@@ -5,6 +5,8 @@ const router = express.Router();
 
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
+const Assignment = require('../models/Assignment');
+const User = require('../models/User');
 const authMiddleware = require('../Middleware/authMiddleware');
 
 router.use(authMiddleware);
@@ -13,6 +15,7 @@ router.use(authMiddleware);
 const populateMessage = (query) => {
     return query
         .populate('sender', 'username email profilePhoto')
+        .populate('assignmentRef', 'title subject description dueDate totalMarks attachments')
         .populate({
             path: 'replyTo',
             select: 'content messageType fileName sender isDeletedForEveryone',
@@ -70,7 +73,8 @@ router.post('/:conversationId', async (req, res) => {
             content,
             messageType,
             fileUrl,
-            fileName
+            fileName,
+            assignmentId
         } = req.body;
 
         const type = messageType || 'text';
@@ -108,6 +112,28 @@ router.post('/:conversationId', async (req, res) => {
             });
         }
 
+        let assignmentRef = null;
+        if (type === 'assignment') {
+            const sender = await User.findById(req.userId).select('role');
+            if (sender?.role !== 'teacher') {
+                return res.status(403).json({ message: 'Only teachers can share assignments in chat.' });
+            }
+            if (!mongoose.isValidObjectId(assignmentId)) {
+                return res.status(400).json({ message: 'A valid assignment ID is required.' });
+            }
+            assignmentRef = await Assignment.findOne({ _id: assignmentId, user: req.userId });
+            if (!assignmentRef) {
+                return res.status(404).json({ message: 'Assignment not found or you do not own it.' });
+            }
+            const participantIds = conversation.participants
+                .map((participant) => String(participant?._id || participant))
+                .filter((id) => id !== String(req.userId));
+            const studentRecipients = await User.find({ _id: { $in: participantIds }, role: 'student' }).select('_id');
+            const merged = new Set([...(assignmentRef.recipients || []).map(String), ...studentRecipients.map((student) => String(student._id))]);
+            assignmentRef.recipients = [...merged];
+            await assignmentRef.save();
+        }
+
         // OPTIONAL REPLY MESSAGE
         let replyToId = req.body.replyToId || req.body.replyTo;
 
@@ -142,6 +168,7 @@ router.post('/:conversationId', async (req, res) => {
             messageType: type,
             fileUrl: fileUrl || '',
             fileName: fileName || '',
+            assignmentRef: assignmentRef?._id || null,
             replyTo: replyToId || null
         });
 
@@ -206,6 +233,7 @@ router.get('/:conversationId', async (req, res) => {
             deletedFor: { $ne: req.userId }
         })
             .populate('sender', 'username email profilePhoto')
+            .populate('assignmentRef', 'title subject description dueDate totalMarks attachments')
             .populate({
                 path: 'replyTo',
                 select: 'content messageType fileName sender isDeletedForEveryone',
@@ -632,6 +660,9 @@ router.put('/:conversationId/read', async (req, res) => {
 });
 
 module.exports = router;
+
+
+
 
 
 

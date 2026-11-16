@@ -1,4 +1,4 @@
-import "./Messenger.css";
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import API_URL from "../../services/api";
@@ -21,24 +21,37 @@ import {
   FaShare,
   FaReply,
   FaCheck,
+  FaImage,
+  FaFileVideo,
+  FaFileAlt,
+  FaFolderOpen,
+  FaDownload,
 } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
+import "./Messenger.css";
 
-// Backend server address (/api illama) - Socket.IO connect aaga
 const SERVER_URL = API_URL.replace(/\/api\/?$/, "");
 
 const COLORS = ["purple", "orange", "green", "blue"];
+
+const EMOJIS = [
+  "😀", "😃", "😄", "😁", "😆", "😅",
+  "😂", "🤣", "😊", "😇", "🙂", "🙃",
+  "😉", "😍", "🥰", "😘", "😋", "😎",
+  "🤩", "🥳", "😔", "😢", "😭", "😡",
+  "👍", "👎", "👏", "🙌", "🙏", "❤️",
+  "💕", "💖", "🔥", "🎉", "💯", "✅",
+  "📚", "📖", "✏️", "🎓", "💻", "📎",
+];
 
 const authHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("ameToken")}`,
 });
 
-// Login token-kulla irukkura userId-a edukkum
 const getUserIdFromToken = () => {
   try {
     const token = localStorage.getItem("ameToken");
-
     if (!token) return null;
 
     const payload = JSON.parse(
@@ -76,7 +89,6 @@ const formatMessageTime = (value) =>
       })
     : "";
 
-// Sidebar-la: indru-na neram, nethu-na Yesterday, illa-na date
 const formatTime = (value) => {
   if (!value) return "";
 
@@ -100,7 +112,6 @@ const formatTime = (value) => {
   });
 };
 
-// Conversation-a sidebar/header-ku vendiya name, avatar, color-a maathum
 const getChatInfo = (conversation, myId) => {
   const participants = conversation.participants || [];
 
@@ -151,7 +162,13 @@ const getPreview = (conversation, myId) => {
     return "Message deleted for you";
   }
 
-  const text = last.content || last.fileName || "Attachment";
+  let text = last.content || last.fileName || "Attachment";
+
+  if (last.messageType === "image") text = "📷 Photo";
+  if (last.messageType === "video") text = "🎥 Video";
+  if (last.messageType === "file") text = `📎 ${last.fileName || "File"}`;
+
+  if (last.messageType === "assignment") text = `📚 ${text}`;
 
   if (conversation.type === "group") {
     const mine =
@@ -169,7 +186,6 @@ function Messenger() {
 
   const myId = getUserIdFromToken();
 
-  // CURRENT USER PROFILE
   const [currentUser, setCurrentUser] = useState(getStoredUser);
 
   useEffect(() => {
@@ -195,8 +211,9 @@ function Messenger() {
   const [unread, setUnread] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // MESSAGE MANAGEMENT STATES
+  // MESSAGE MANAGEMENT
   const [openMessageMenu, setOpenMessageMenu] = useState(null);
+  const [selectedActionMessage, setSelectedActionMessage] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
@@ -204,7 +221,20 @@ function Messenger() {
   const [forwarding, setForwarding] = useState(false);
   const [forwardTargetId, setForwardTargetId] = useState("");
 
-  // Socket event-kulla latest value venum, adhanaala refs
+  // ASSIGNMENT SHARING
+  const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
+  const [shareableAssignments, setShareableAssignments] = useState([]);
+  const [loadingShareableAssignments, setLoadingShareableAssignments] = useState(false);
+
+  // ATTACHMENT AND EMOJI
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
   const activeChatRef = useRef(null);
   const conversationsRef = useRef([]);
   const messagesEndRef = useRef(null);
@@ -217,7 +247,6 @@ function Messenger() {
     conversationsRef.current = conversations;
   }, [conversations]);
 
-  // Messages padichittom-nu backend-ku solluvom
   const markAsRead = useCallback((conversationId) => {
     fetch(`${API_URL}/messages/${conversationId}/read`, {
       method: "PUT",
@@ -225,7 +254,7 @@ function Messenger() {
     }).catch(() => {});
   }, []);
 
-  // MY CONVERSATIONS LOAD
+  // LOAD CONVERSATIONS
   const loadConversations = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/conversations`, {
@@ -240,7 +269,6 @@ function Messenger() {
 
       setConversations(data);
 
-      // Last message innum padikkala-na unread = 1
       setUnread((previous) => {
         const next = { ...previous };
 
@@ -267,17 +295,20 @@ function Messenger() {
     }
   }, [myId]);
 
-  // OPEN A CHAT + LOAD ITS MESSAGES
+  // OPEN CHAT
   const openChat = useCallback(
     async (conversationId) => {
       setActiveChat(conversationId);
       setUnread((previous) => ({ ...previous, [conversationId]: 0 }));
 
-      // Clear action state when switching conversations
       setOpenMessageMenu(null);
+      setSelectedActionMessage(null);
       setReplyingTo(null);
       setEditingMessageId(null);
       setMessage("");
+      setShowAttachmentMenu(false);
+      setShowEmojiPicker(false);
+      setShowAssignmentPicker(false);
 
       try {
         const response = await fetch(
@@ -305,12 +336,10 @@ function Messenger() {
     [markAsRead]
   );
 
-  // Page open aagum pothu conversations load pannum
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-  // Contacts page-la Message click pannina, andha chat-a open pannum
   useEffect(() => {
     const target = location.state?.conversationId;
 
@@ -329,7 +358,7 @@ function Messenger() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  // REAL-TIME SOCKET EVENTS
+  // SOCKET EVENTS
   useEffect(() => {
     const token = localStorage.getItem("ameToken");
 
@@ -337,11 +366,9 @@ function Messenger() {
 
     const socket = io(SERVER_URL, { auth: { token } });
 
-    // Vera oruthar message anuppina
     socket.on("new-message", (incoming) => {
       const conversationId = String(incoming.conversationId);
 
-      // Puthu conversation-na list-a thirumba load pannum
       if (
         !conversationsRef.current.some(
           (item) => String(item._id) === conversationId
@@ -354,7 +381,10 @@ function Messenger() {
       setMessagesByChat((previous) => {
         const list = previous[conversationId];
 
-        if (!list || list.some((item) => String(item._id) === String(incoming._id))) {
+        if (
+          !list ||
+          list.some((item) => String(item._id) === String(incoming._id))
+        ) {
           return previous;
         }
 
@@ -388,7 +418,6 @@ function Messenger() {
       }
     });
 
-    // Naan anuppina message-a avanga padichaanga
     socket.on(
       "message-read",
       ({ messageId, conversationId, readBy, readAt }) => {
@@ -417,7 +446,6 @@ function Messenger() {
       }
     );
 
-    // REAL-TIME MESSAGE EDIT
     socket.on("message-updated", (updatedMessage) => {
       const chatId = String(updatedMessage.conversationId);
 
@@ -446,7 +474,6 @@ function Messenger() {
       );
     });
 
-    // REAL-TIME MESSAGE DELETE
     socket.on("message-deleted", (payload) => {
       const chatId = String(payload.conversationId);
       const deletedId = String(payload.messageId);
@@ -520,7 +547,7 @@ function Messenger() {
     return () => socket.disconnect();
   }, [loadConversations, markAsRead, myId]);
 
-  // REPLY TO MESSAGE
+  // REPLY
   const handleReplyMessage = (msg) => {
     if (msg.isDeletedForEveryone) return;
 
@@ -530,7 +557,7 @@ function Messenger() {
     setOpenMessageMenu(null);
   };
 
-  // EDIT OWN TEXT MESSAGE
+  // EDIT
   const handleEditMessage = (msg) => {
     const senderId = msg.sender?._id || msg.sender;
 
@@ -549,7 +576,7 @@ function Messenger() {
     setOpenMessageMenu(null);
   };
 
-  // DELETE MESSAGE
+  // DELETE
   const handleDeleteMessage = async (msg, deleteFor) => {
     const senderId = msg.sender?._id || msg.sender;
 
@@ -652,7 +679,7 @@ function Messenger() {
     }
   };
 
-  // OPEN FORWARD MESSAGE WINDOW
+  // FORWARD
   const handleForwardMessage = (msg) => {
     if (msg.isDeletedForEveryone) {
       alert("Deleted messages cannot be forwarded.");
@@ -665,7 +692,6 @@ function Messenger() {
     setOpenMessageMenu(null);
   };
 
-  // CLOSE FORWARD WINDOW
   const closeForwardModal = () => {
     if (forwarding) return;
 
@@ -674,7 +700,6 @@ function Messenger() {
     setForwardTargetId("");
   };
 
-  // CONFIRM FORWARD MESSAGE
   const confirmForwardMessage = async () => {
     if (!forwardingMessage || !forwardTargetId) {
       alert("Please select a conversation.");
@@ -703,7 +728,6 @@ function Messenger() {
 
       const forwarded = data.data;
 
-      // UPDATE TARGET CONVERSATION LAST MESSAGE
       setConversations((previous) =>
         previous
           .map((item) =>
@@ -718,7 +742,6 @@ function Messenger() {
           .sort(byUpdated)
       );
 
-      // UPDATE TARGET CHAT IF ITS MESSAGES ARE ALREADY LOADED
       setMessagesByChat((previous) => {
         const targetMessages = previous[forwardTargetId];
 
@@ -751,7 +774,7 @@ function Messenger() {
     }
   };
 
-  // SEND MESSAGE, REPLY MESSAGE OR SAVE EDIT
+  // SEND TEXT MESSAGE / REPLY / EDIT
   const sendMessage = async (e) => {
     e.preventDefault();
 
@@ -761,7 +784,6 @@ function Messenger() {
 
     try {
       if (editingMessageId) {
-        // EDIT EXISTING MESSAGE
         const response = await fetch(
           `${API_URL}/messages/${editingMessageId}`,
           {
@@ -800,7 +822,6 @@ function Messenger() {
         setEditingMessageId(null);
         setMessage("");
       } else {
-        // SEND NORMAL MESSAGE OR REPLY
         const response = await fetch(`${API_URL}/messages/${activeChat}`, {
           method: "POST",
           headers: authHeaders(),
@@ -849,6 +870,179 @@ function Messenger() {
     }
   };
 
+  // ADD EMOJI TO MESSAGE INPUT
+  const addEmoji = (emoji) => {
+    setMessage((previous) => previous + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  // UPLOAD IMAGE / VIDEO / FILE
+  const handleFileUpload = async (event, selectedType) => {
+    const file = event.target.files?.[0];
+
+    if (!file || !activeChat) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      setShowAttachmentMenu(false);
+      setShowEmojiPicker(false);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("ameToken");
+
+      // IMPORTANT: FormData-ku Content-Type manually set panna koodathu.
+      const uploadResponse = await fetch(`${API_URL}/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const uploadData = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        throw new Error(uploadData.message || "File upload failed.");
+      }
+
+      const uploadedFile = uploadData.data;
+
+      const response = await fetch(`${API_URL}/messages/${activeChat}`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          messageType: selectedType,
+          content: "",
+          fileUrl: uploadedFile.fileUrl,
+          fileName: uploadedFile.fileName || file.name,
+          replyToId: replyingTo?._id || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Unable to send attachment.");
+      }
+
+      const sent = result.data;
+
+      setMessagesByChat((previous) => ({
+        ...previous,
+        [activeChat]: [
+          ...(previous[activeChat] || []),
+          sent,
+        ],
+      }));
+
+      setConversations((previous) =>
+        previous
+          .map((item) =>
+            String(item._id) === String(activeChat)
+              ? {
+                  ...item,
+                  lastMessage: sent,
+                  updatedAt: sent.createdAt,
+                }
+              : item
+          )
+          .sort(byUpdated)
+      );
+
+      setReplyingTo(null);
+    } catch (error) {
+      console.error("Attachment Upload Error:", error);
+      alert(error.message);
+    } finally {
+      setUploadingFile(false);
+      event.target.value = "";
+    }
+  };
+
+  // OPEN ASSIGNMENT PICKER
+  const openAssignmentPicker = async () => {
+    const user = getStoredUser();
+
+    if (user?.role !== "teacher") {
+      alert("Only teachers can share assignments.");
+      return;
+    }
+
+    setShowAssignmentPicker((previous) => !previous);
+    setLoadingShareableAssignments(true);
+
+    try {
+      const response = await fetch(`${API_URL}/assignments`, {
+        headers: authHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to load assignments.");
+      }
+
+      setShareableAssignments(data.assignments || []);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setLoadingShareableAssignments(false);
+    }
+  };
+
+  // SHARE ASSIGNMENT
+  const shareAssignmentInChat = async (assignment) => {
+    if (!activeChat) return;
+
+    try {
+      const response = await fetch(`${API_URL}/messages/${activeChat}`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          messageType: "assignment",
+          assignmentId: assignment._id,
+          content: assignment.title,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to share assignment.");
+      }
+
+      const sent = data.data;
+
+      setMessagesByChat((previous) => ({
+        ...previous,
+        [activeChat]: [...(previous[activeChat] || []), sent],
+      }));
+
+      setConversations((previous) =>
+        previous
+          .map((item) =>
+            String(item._id) === String(activeChat)
+              ? {
+                  ...item,
+                  lastMessage: sent,
+                  updatedAt: sent.createdAt,
+                }
+              : item
+          )
+          .sort(byUpdated)
+      );
+
+      setShowAssignmentPicker(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   const chatList = conversations.map((conversation) => ({
     ...conversation,
     info: getChatInfo(conversation, myId),
@@ -868,7 +1062,6 @@ function Messenger() {
     (chat) => String(chat._id) !== String(activeChat)
   );
 
-  // Puthu message vandha keezha scroll aagum
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messagesByChat, activeChat]);
@@ -888,7 +1081,6 @@ function Messenger() {
           </div>
         </div>
 
-        {/* CURRENT USER PROFILE */}
         <div className="messenger-profile">
           <div className="messenger-avatar profile-avatar">
             {currentUser?.profilePhoto ? (
@@ -901,17 +1093,20 @@ function Messenger() {
               currentUser?.username?.charAt(0).toUpperCase() || "M"
             )}
           </div>
+
           <div className="profile-info">
             <h4>{currentUser?.username || "My Account"}</h4>
             <p>
               <span className="online-dot"></span> Available
             </p>
           </div>
+
           <FaEllipsisV className="profile-menu" />
         </div>
 
         <div className="messenger-sidebar-heading">
           <h3>Messages</h3>
+
           <button
             type="button"
             className="new-chat-btn"
@@ -972,6 +1167,7 @@ function Messenger() {
                   <h4>{chat.info.name}</h4>
                   <span>{formatTime(chat.lastMessage?.createdAt)}</span>
                 </div>
+
                 <p>{getPreview(chat, myId)}</p>
                 <small>{chat.info.role}</small>
               </div>
@@ -1012,7 +1208,6 @@ function Messenger() {
                 <FaArrowLeft />
               </button>
 
-              {/* CHAT HEADER USER / GROUP PHOTO */}
               <div
                 className={`messenger-avatar avatar-${selectedChat.info.color}`}
               >
@@ -1032,24 +1227,100 @@ function Messenger() {
                 <p>{selectedChat.info.role}</p>
               </div>
 
-              <div className="chat-header-actions">
-                <button type="button" title="Voice call">
-                  <FaPhone />
-                </button>
-                <button type="button" title="Video call">
-                  <FaVideo />
-                </button>
-                <button type="button" title="More options">
-                  <FaEllipsisV />
-                </button>
-                <button
-                  type="button"
-                  className="close-chat-btn"
-                  title="Close chat"
-                  onClick={() => setActiveChat(null)}
-                >
-                  <FaTimes />
-                </button>
+              <div className={`chat-header-actions ${selectedActionMessage ? "message-selection-actions" : ""}`}>
+                {selectedActionMessage ? (
+                  <>
+                    <button
+                      type="button"
+                      title="Reply"
+                      onClick={() => {
+                        handleReplyMessage(selectedActionMessage);
+                        setSelectedActionMessage(null);
+                      }}
+                    >
+                      <FaReply />
+                    </button>
+
+                    {String(selectedActionMessage.sender?._id || selectedActionMessage.sender) === String(myId) &&
+                      selectedActionMessage.messageType === "text" &&
+                      !selectedActionMessage.isDeletedForEveryone && (
+                        <button
+                          type="button"
+                          title="Edit"
+                          onClick={() => {
+                            handleEditMessage(selectedActionMessage);
+                            setSelectedActionMessage(null);
+                          }}
+                        >
+                          <FaEdit />
+                        </button>
+                      )}
+
+                    <button
+                      type="button"
+                      title="Forward"
+                      onClick={() => {
+                        handleForwardMessage(selectedActionMessage);
+                        setSelectedActionMessage(null);
+                      }}
+                    >
+                      <FaShare />
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Delete for me"
+                      onClick={() => {
+                        handleDeleteMessage(selectedActionMessage, "me");
+                        setSelectedActionMessage(null);
+                      }}
+                    >
+                      <FaTrash />
+                    </button>
+
+                    {String(selectedActionMessage.sender?._id || selectedActionMessage.sender) === String(myId) &&
+                      !selectedActionMessage.isDeletedForEveryone && (
+                        <button
+                          type="button"
+                          title="Delete for everyone"
+                          onClick={() => {
+                            handleDeleteMessage(selectedActionMessage, "everyone");
+                            setSelectedActionMessage(null);
+                          }}
+                        >
+                          <FaTrash />
+                        </button>
+                      )}
+
+                    <button
+                      type="button"
+                      title="Cancel selection"
+                      onClick={() => setSelectedActionMessage(null)}
+                    >
+                      <FaTimes />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" title="Voice call">
+                      <FaPhone />
+                    </button>
+                    <button type="button" title="Video call">
+                      <FaVideo />
+                    </button>
+                    <button type="button" title="More options">
+                      <FaEllipsisV />
+                    </button>
+                    <button
+                      type="button"
+                      className="close-chat-btn"
+                      title="Close chat"
+                      onClick={() => setActiveChat(null)}
+                    >
+                      <FaTimes />
+                    </button>
+                  </>
+                )}
               </div>
             </header>
 
@@ -1057,7 +1328,6 @@ function Messenger() {
               <span>TODAY</span>
             </div>
 
-            {/* CHAT MESSAGES WITH ACTION MENU */}
             <section className="chat-messages">
               {selectedMessages.map((msg) => {
                 const senderId = msg.sender?._id || msg.sender;
@@ -1082,7 +1352,6 @@ function Messenger() {
                     )}
 
                     <div className="message-bubble">
-                      {/* FORWARDED LABEL */}
                       {!deleted && msg.forwardedFrom && (
                         <div className="forwarded-label">
                           <FaShare />
@@ -1090,7 +1359,6 @@ function Messenger() {
                         </div>
                       )}
 
-                      {/* ORIGINAL REPLY MESSAGE */}
                       {msg.replyTo && (
                         <div className="reply-quoted-message">
                           <strong>
@@ -1106,24 +1374,90 @@ function Messenger() {
                         </div>
                       )}
 
-                      {/* MESSAGE CONTENT */}
                       {deleted ? (
                         <p className="deleted-message-text">
                           <FaTrash /> This message was deleted
                         </p>
+                      ) : msg.messageType === "assignment" ? (
+                        <div className="chat-assignment-card">
+                          <strong><FaCheck /> Shared Assignment</strong>
+                          <h4>
+                            {msg.assignmentRef?.title ||
+                              msg.content ||
+                              "Assignment"}
+                          </h4>
+                          <p>
+                            {msg.assignmentRef?.subject || "Academic task"}
+                          </p>
+
+                          {msg.assignmentRef?.dueDate && (
+                            <small>
+                              Due: {new Date(msg.assignmentRef.dueDate).toLocaleDateString()}
+                            </small>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const assignmentId =
+                                msg.assignmentRef?._id || msg.assignmentRef;
+
+                              navigate(
+                                assignmentId
+                                  ? `/Assignment?open=${assignmentId}`
+                                  : "/Assignment"
+                              );
+                            }}
+                          >
+                            View Assignment
+                          </button>
+                        </div>
+                      ) : msg.messageType === "image" ? (
+                        <div className="chat-image-attachment">
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img
+                              src={msg.fileUrl}
+                              alt={msg.fileName || "Shared image"}
+                              loading="lazy"
+                            />
+                          </a>
+                          {msg.fileName && <small>{msg.fileName}</small>}
+                        </div>
+                      ) : msg.messageType === "video" ? (
+                        <div className="chat-video-attachment">
+                          <video controls preload="metadata">
+                            <source src={msg.fileUrl} />
+                            Your browser does not support video playback.
+                          </video>
+                          {msg.fileName && <small>{msg.fileName}</small>}
+                        </div>
+                      ) : msg.messageType === "file" ? (
+                        <a
+                          className="chat-file-attachment"
+                          href={msg.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <FaFileAlt />
+                          <span>{msg.fileName || "Shared file"}</span>
+                          <FaDownload />
+                        </a>
                       ) : (
-                        <p>
-                          {msg.content || msg.fileName || "Attachment"}
-                        </p>
+                        <p>{msg.content || "Attachment"}</p>
                       )}
 
-                      {/* MESSAGE TIME AND ACTIONS */}
                       <div className="message-bubble-footer">
                         <span className="message-time">
                           {formatMessageTime(msg.createdAt)}
+
                           {msg.editedAt && (
                             <small className="edited-label"> (edited)</small>
                           )}
+
                           {sent && !deleted && (
                             <span className="read-tick">
                               {seen ? "✓✓" : "✓"}
@@ -1136,18 +1470,18 @@ function Messenger() {
                           className="message-actions-trigger"
                           title="Message actions"
                           aria-label="Message actions"
-                          onClick={() =>
-                            setOpenMessageMenu((previous) =>
-                              previous === msg._id ? null : msg._id
-                            )
-                          }
+                          onClick={() => {
+                            setSelectedActionMessage((previous) =>
+                              previous?._id === msg._id ? null : msg
+                            );
+                            setOpenMessageMenu(null);
+                          }}
                         >
                           <FaEllipsisV />
                         </button>
                       </div>
 
-                      {/* MESSAGE ACTION MENU */}
-                      {openMessageMenu === msg._id && (
+                      {openMessageMenu === msg._id && !selectedActionMessage && (
                         <div className="message-actions-menu">
                           {!deleted && (
                             <button
@@ -1219,7 +1553,7 @@ function Messenger() {
               <div ref={messagesEndRef} />
             </section>
 
-            {/* MESSAGE INPUT + REPLY / EDIT PREVIEW */}
+            {/* MESSAGE INPUT */}
             <form className="chat-input-area" onSubmit={sendMessage}>
               {replyingTo && (
                 <div className="message-compose-context">
@@ -1233,6 +1567,7 @@ function Messenger() {
                         "Attachment"}
                     </p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setReplyingTo(null)}
@@ -1249,6 +1584,7 @@ function Messenger() {
                     <strong>Editing message</strong>
                     <p>Update your message and press save.</p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -1262,21 +1598,155 @@ function Messenger() {
                 </div>
               )}
 
-              <button
-                type="button"
-                className="input-icon-btn"
-                title="Attach file"
-              >
-                <FaPaperclip />
-              </button>
+              {/* HIDDEN FILE INPUTS */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={imageInputRef}
+                hidden
+                onChange={(e) => handleFileUpload(e, "image")}
+              />
 
-              <button
-                type="button"
-                className="input-icon-btn"
-                title="Emoji"
-              >
-                <FaSmile />
-              </button>
+              <input
+                type="file"
+                accept="video/*"
+                ref={videoInputRef}
+                hidden
+                onChange={(e) => handleFileUpload(e, "video")}
+              />
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                hidden
+                onChange={(e) => handleFileUpload(e, "file")}
+              />
+
+              {/* ATTACHMENT BUTTON */}
+              <div className="attachment-control">
+                <button
+                  type="button"
+                  className="input-icon-btn"
+                  title="Attach image, video or file"
+                  onClick={() => {
+                    setShowAttachmentMenu((previous) => !previous);
+                    setShowEmojiPicker(false);
+                    setShowAssignmentPicker(false);
+                  }}
+                >
+                  <FaPaperclip />
+                </button>
+
+                {showAttachmentMenu && (
+                  <div className="attachment-menu">
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                    >
+                      <FaImage />
+                      <span>Photo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => videoInputRef.current?.click()}
+                    >
+                      <FaFileVideo />
+                      <span>Video</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FaFileAlt />
+                      <span>Document / File</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachmentMenu(false);
+                        openAssignmentPicker();
+                      }}
+                    >
+                      <FaFolderOpen />
+                      <span>Share Assignment</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ASSIGNMENT PICKER */}
+              {showAssignmentPicker && (
+                <div className="assignment-share-menu">
+                  <strong>Share an assignment</strong>
+
+                  {loadingShareableAssignments ? (
+                    <p>Loading assignments...</p>
+                  ) : shareableAssignments.length === 0 ? (
+                    <p>No assignments created yet.</p>
+                  ) : (
+                    shareableAssignments.map((assignment) => (
+                      <button
+                        type="button"
+                        key={assignment._id}
+                        onClick={() => shareAssignmentInChat(assignment)}
+                      >
+                        <span>{assignment.title}</span>
+                        <small>
+                          {assignment.subject} · Due{" "}
+                          {new Date(assignment.dueDate).toLocaleDateString()}
+                        </small>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* EMOJI PICKER */}
+              <div className="emoji-control">
+                <button
+                  type="button"
+                  className="input-icon-btn"
+                  title="Choose emoji"
+                  onClick={() => {
+                    setShowEmojiPicker((previous) => !previous);
+                    setShowAttachmentMenu(false);
+                    setShowAssignmentPicker(false);
+                  }}
+                >
+                  <FaSmile />
+                </button>
+
+                {showEmojiPicker && (
+                  <div className="emoji-picker">
+                    <div className="emoji-picker-heading">
+                      <strong>Choose an emoji</strong>
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(false)}
+                        title="Close emoji picker"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+
+                    <div className="emoji-grid">
+                      {EMOJIS.map((emoji, index) => (
+                        <button
+                          type="button"
+                          key={`${emoji}-${index}`}
+                          onClick={() => addEmoji(emoji)}
+                          title={`Add ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <input
                 type="text"
@@ -1294,12 +1764,18 @@ function Messenger() {
               <button
                 type="submit"
                 className="send-message-btn"
-                disabled={!message.trim()}
+                disabled={!message.trim() || uploadingFile}
                 title={editingMessageId ? "Save changes" : "Send message"}
               >
                 {editingMessageId ? <FaCheck /> : <FaPaperPlane />}
               </button>
             </form>
+
+            {uploadingFile && (
+              <div className="uploading-indicator">
+                Uploading attachment... Please wait.
+              </div>
+            )}
           </>
         ) : (
           <div className="empty-conversation welcome-chat">
@@ -1312,7 +1788,7 @@ function Messenger() {
         )}
       </main>
 
-      {/* FORWARD MESSAGE MODAL */}
+      {/* FORWARD MODAL */}
       {showForwardModal && forwardingMessage && (
         <div className="forward-modal-overlay">
           <div className="forward-modal">
@@ -1337,7 +1813,11 @@ function Messenger() {
               <p>
                 {forwardingMessage.content ||
                   forwardingMessage.fileName ||
-                  "Attachment"}
+                  (forwardingMessage.messageType === "image"
+                    ? "Photo"
+                    : forwardingMessage.messageType === "video"
+                      ? "Video"
+                      : "Attachment")}
               </p>
             </div>
 
@@ -1350,6 +1830,7 @@ function Messenger() {
               onChange={(e) => setForwardTargetId(e.target.value)}
             >
               <option value="">Choose contact or group</option>
+
               {forwardTargets.map((chat) => (
                 <option key={chat._id} value={chat._id}>
                   {chat.info.type === "Group" ? "Group: " : ""}
@@ -1392,14 +1873,4 @@ function Messenger() {
 }
 
 export default Messenger;
-
-
-
-
-
-
-
-
-
-
 
