@@ -215,7 +215,7 @@ export default function SettingsPage() {
 
       try {
         const response = await fetch(
-          "http://localhost:5001/api/settings",
+          "https://obligation-known-reasons-mounts.trycloudflare.com/api/settings",
           {
             method: "GET",
             headers: {
@@ -269,7 +269,7 @@ export default function SettingsPage() {
 
       try {
         const response = await fetch(
-          "http://localhost:5001/api/settings",
+          "https://obligation-known-reasons-mounts.trycloudflare.com/api/settings",
           {
             method: "PUT",
             headers: {
@@ -434,7 +434,7 @@ export default function SettingsPage() {
       );
 
       const uploadResponse = await fetch(
-        "http://localhost:5001/api/upload",
+        "https://obligation-known-reasons-mounts.trycloudflare.com/api/upload",
         {
           method: "POST",
           headers: {
@@ -461,7 +461,7 @@ export default function SettingsPage() {
 
       // STEP 3: SAVE PROFILE PHOTO IN MONGODB
       const profileResponse = await fetch(
-        "http://localhost:5001/api/auth/profile",
+        "https://obligation-known-reasons-mounts.trycloudflare.com/api/auth/profile",
         {
           method: "PUT",
           headers: {
@@ -557,7 +557,7 @@ export default function SettingsPage() {
       setSavingProfile(true);
 
       const response = await fetch(
-        "http://localhost:5001/api/auth/profile",
+        "https://obligation-known-reasons-mounts.trycloudflare.com/api/auth/profile",
         {
           method: "PUT",
           headers: {

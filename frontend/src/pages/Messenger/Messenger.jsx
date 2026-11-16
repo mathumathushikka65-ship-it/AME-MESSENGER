@@ -1,4 +1,4 @@
-import "./Messenger.css"
+import "./Messenger.css";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import API_URL from "../../services/api";
@@ -16,10 +16,15 @@ import {
   FaArrowLeft,
   FaComments,
   FaTimes,
+  FaEdit,
+  FaTrash,
+  FaShare,
+  FaReply,
+  FaCheck,
 } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 
-// Backend server address (/api illama) - socket.io connect aaga
+// Backend server address (/api illama) - Socket.IO connect aaga
 const SERVER_URL = API_URL.replace(/\/api\/?$/, "");
 
 const COLORS = ["purple", "orange", "green", "blue"];
@@ -46,12 +51,22 @@ const getUserIdFromToken = () => {
   }
 };
 
-const getInitials = (name = "") => name.trim().slice(0, 2).toUpperCase() || "?";
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("ameUser") || "null");
+  } catch {
+    return null;
+  }
+};
+
+const getInitials = (name = "") =>
+  name.trim().slice(0, 2).toUpperCase() || "?";
 
 const getColor = (name = "") =>
   COLORS[name.length ? name.charCodeAt(0) % COLORS.length : 0];
 
-const byUpdated = (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt);
+const byUpdated = (a, b) =>
+  new Date(b.updatedAt) - new Date(a.updatedAt);
 
 const formatMessageTime = (value) =>
   value
@@ -61,7 +76,7 @@ const formatMessageTime = (value) =>
       })
     : "";
 
-// Sidebar-la: indru-na neram, nethu-na "Yesterday", illa-na date
+// Sidebar-la: indru-na neram, nethu-na Yesterday, illa-na date
 const formatTime = (value) => {
   if (!value) return "";
 
@@ -75,13 +90,20 @@ const formatTime = (value) => {
   const yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
 
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
 
-  return date.toLocaleDateString([], { day: "numeric", month: "short" });
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
 };
 
 // Conversation-a sidebar/header-ku vendiya name, avatar, color-a maathum
 const getChatInfo = (conversation, myId) => {
+  const participants = conversation.participants || [];
+
   if (conversation.type === "group") {
     const name = conversation.groupName || "Group";
 
@@ -90,13 +112,14 @@ const getChatInfo = (conversation, myId) => {
       avatar: getInitials(name),
       profilePhoto: "",
       color: getColor(name),
-      role: `Group · ${conversation.participants.length} members`,
+      role: `Group · ${participants.length} members`,
       type: "Group",
     };
   }
 
-  const other = conversation.participants.find(
-    (participant) => String(participant._id) !== String(myId)
+  const other = participants.find(
+    (participant) =>
+      String(participant?._id || participant) !== String(myId)
   );
 
   const name = other?.username || "Unknown user";
@@ -116,46 +139,52 @@ const getPreview = (conversation, myId) => {
 
   if (!last) return "Start a conversation";
 
+  if (last.isDeletedForEveryone) {
+    return "This message was deleted";
+  }
+
+  const deletedFor = (last.deletedFor || []).some(
+    (user) => String(user?._id || user) === String(myId)
+  );
+
+  if (deletedFor) {
+    return "Message deleted for you";
+  }
+
   const text = last.content || last.fileName || "Attachment";
 
   if (conversation.type === "group") {
-    const mine = String(last.sender?._id) === String(myId);
+    const mine =
+      String(last.sender?._id || last.sender) === String(myId);
+
     return `${mine ? "You" : last.sender?.username || "Someone"}: ${text}`;
   }
 
   return text;
 };
 
-const getStoredUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("ameUser") || "null");
-  } catch {
-    return null;
-  }
-};
-
 function Messenger() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // CURRENT USER PROFILE
-const [currentUser, setCurrentUser] = useState(getStoredUser);
-
-useEffect(() => {
-  const updateUser = () => {
-    setCurrentUser(getStoredUser());
-  };
-
-  window.addEventListener("ameUserUpdated", updateUser);
-  window.addEventListener("storage", updateUser);
-
-  return () => {
-    window.removeEventListener("ameUserUpdated", updateUser);
-    window.removeEventListener("storage", updateUser);
-  };
-}, []);
-
   const myId = getUserIdFromToken();
+
+  // CURRENT USER PROFILE
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
+
+  useEffect(() => {
+    const updateUser = () => {
+      setCurrentUser(getStoredUser());
+    };
+
+    window.addEventListener("ameUserUpdated", updateUser);
+    window.addEventListener("storage", updateUser);
+
+    return () => {
+      window.removeEventListener("ameUserUpdated", updateUser);
+      window.removeEventListener("storage", updateUser);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState("Personal");
   const [activeChat, setActiveChat] = useState(null);
@@ -165,6 +194,15 @@ useEffect(() => {
   const [messagesByChat, setMessagesByChat] = useState({});
   const [unread, setUnread] = useState({});
   const [loading, setLoading] = useState(true);
+
+  // MESSAGE MANAGEMENT STATES
+  const [openMessageMenu, setOpenMessageMenu] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [forwardingMessage, setForwardingMessage] = useState(null);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [forwarding, setForwarding] = useState(false);
+  const [forwardTargetId, setForwardTargetId] = useState("");
 
   // Socket event-kulla latest value venum, adhanaala refs
   const activeChatRef = useRef(null);
@@ -213,9 +251,9 @@ useEffect(() => {
 
           const isUnread =
             last &&
-            String(last.sender?._id) !== String(myId) &&
+            String(last.sender?._id || last.sender) !== String(myId) &&
             !(last.readBy || []).some(
-              (item) => String(item.user) === String(myId)
+              (item) => String(item.user?._id || item.user) === String(myId)
             );
 
           next[conversation._id] = isUnread ? 1 : 0;
@@ -224,6 +262,7 @@ useEffect(() => {
         return next;
       });
     } catch (error) {
+      console.error("Load Conversations Error:", error);
       alert(error.message);
     }
   }, [myId]);
@@ -233,6 +272,12 @@ useEffect(() => {
     async (conversationId) => {
       setActiveChat(conversationId);
       setUnread((previous) => ({ ...previous, [conversationId]: 0 }));
+
+      // Clear action state when switching conversations
+      setOpenMessageMenu(null);
+      setReplyingTo(null);
+      setEditingMessageId(null);
+      setMessage("");
 
       try {
         const response = await fetch(
@@ -253,6 +298,7 @@ useEffect(() => {
 
         markAsRead(conversationId);
       } catch (error) {
+        console.error("Open Chat Error:", error);
         alert(error.message);
       }
     },
@@ -270,7 +316,9 @@ useEffect(() => {
 
     if (!target || loading) return;
 
-    const conversation = conversations.find((item) => item._id === target);
+    const conversation = conversations.find(
+      (item) => String(item._id) === String(target)
+    );
 
     if (conversation) {
       setActiveTab(conversation.type === "group" ? "Group" : "Personal");
@@ -281,11 +329,11 @@ useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  // REAL-TIME: socket connect
+  // REAL-TIME SOCKET EVENTS
   useEffect(() => {
     const token = localStorage.getItem("ameToken");
 
-    if (!token) return;
+    if (!token) return undefined;
 
     const socket = io(SERVER_URL, { auth: { token } });
 
@@ -295,7 +343,9 @@ useEffect(() => {
 
       // Puthu conversation-na list-a thirumba load pannum
       if (
-        !conversationsRef.current.some((item) => item._id === conversationId)
+        !conversationsRef.current.some(
+          (item) => String(item._id) === conversationId
+        )
       ) {
         loadConversations();
         return;
@@ -304,18 +354,25 @@ useEffect(() => {
       setMessagesByChat((previous) => {
         const list = previous[conversationId];
 
-        if (!list || list.some((item) => item._id === incoming._id)) {
+        if (!list || list.some((item) => String(item._id) === String(incoming._id))) {
           return previous;
         }
 
-        return { ...previous, [conversationId]: [...list, incoming] };
+        return {
+          ...previous,
+          [conversationId]: [...list, incoming],
+        };
       });
 
       setConversations((previous) =>
         previous
           .map((item) =>
-            item._id === conversationId
-              ? { ...item, lastMessage: incoming, updatedAt: incoming.createdAt }
+            String(item._id) === conversationId
+              ? {
+                  ...item,
+                  lastMessage: incoming,
+                  updatedAt: incoming.createdAt,
+                }
               : item
           )
           .sort(byUpdated)
@@ -332,8 +389,37 @@ useEffect(() => {
     });
 
     // Naan anuppina message-a avanga padichaanga
-    socket.on("message-read", ({ messageId, conversationId, readBy, readAt }) => {
-      const chatId = String(conversationId);
+    socket.on(
+      "message-read",
+      ({ messageId, conversationId, readBy, readAt }) => {
+        const chatId = String(conversationId);
+
+        setMessagesByChat((previous) => {
+          const list = previous[chatId];
+
+          if (!list) return previous;
+
+          return {
+            ...previous,
+            [chatId]: list.map((item) =>
+              String(item._id) === String(messageId)
+                ? {
+                    ...item,
+                    readBy: [
+                      ...(item.readBy || []),
+                      { user: readBy, readAt },
+                    ],
+                  }
+                : item
+            ),
+          };
+        });
+      }
+    );
+
+    // REAL-TIME MESSAGE EDIT
+    socket.on("message-updated", (updatedMessage) => {
+      const chatId = String(updatedMessage.conversationId);
 
       setMessagesByChat((previous) => {
         const list = previous[chatId];
@@ -343,21 +429,329 @@ useEffect(() => {
         return {
           ...previous,
           [chatId]: list.map((item) =>
-            item._id === String(messageId)
+            String(item._id) === String(updatedMessage._id)
+              ? updatedMessage
+              : item
+          ),
+        };
+      });
+
+      setConversations((previous) =>
+        previous.map((item) =>
+          String(item._id) === chatId &&
+          String(item.lastMessage?._id) === String(updatedMessage._id)
+            ? { ...item, lastMessage: updatedMessage }
+            : item
+        )
+      );
+    });
+
+    // REAL-TIME MESSAGE DELETE
+    socket.on("message-deleted", (payload) => {
+      const chatId = String(payload.conversationId);
+      const deletedId = String(payload.messageId);
+
+      setMessagesByChat((previous) => {
+        const list = previous[chatId];
+
+        if (!list) return previous;
+
+        if (payload.deleteFor === "me") {
+          return {
+            ...previous,
+            [chatId]: list.filter(
+              (item) => String(item._id) !== deletedId
+            ),
+          };
+        }
+
+        return {
+          ...previous,
+          [chatId]: list.map((item) =>
+            String(item._id) === deletedId
               ? {
                   ...item,
-                  readBy: [...(item.readBy || []), { user: readBy, readAt }],
+                  content: "",
+                  fileUrl: "",
+                  fileName: "",
+                  isDeletedForEveryone: true,
                 }
               : item
           ),
         };
       });
+
+      setConversations((previous) =>
+        previous.map((item) => {
+          if (
+            String(item._id) !== chatId ||
+            String(item.lastMessage?._id) !== deletedId
+          ) {
+            return item;
+          }
+
+          if (payload.deleteFor === "me") {
+            return {
+              ...item,
+              lastMessage: {
+                ...item.lastMessage,
+                deletedFor: [
+                  ...(item.lastMessage.deletedFor || []),
+                  myId,
+                ],
+              },
+            };
+          }
+
+          return {
+            ...item,
+            lastMessage: {
+              ...item.lastMessage,
+              content: "",
+              fileUrl: "",
+              fileName: "",
+              isDeletedForEveryone: true,
+            },
+          };
+        })
+      );
     });
 
     return () => socket.disconnect();
-  }, [loadConversations, markAsRead]);
+  }, [loadConversations, markAsRead, myId]);
 
-  // SEND MESSAGE
+  // REPLY TO MESSAGE
+  const handleReplyMessage = (msg) => {
+    if (msg.isDeletedForEveryone) return;
+
+    setReplyingTo(msg);
+    setEditingMessageId(null);
+    setMessage("");
+    setOpenMessageMenu(null);
+  };
+
+  // EDIT OWN TEXT MESSAGE
+  const handleEditMessage = (msg) => {
+    const senderId = msg.sender?._id || msg.sender;
+
+    if (
+      String(senderId) !== String(myId) ||
+      msg.messageType !== "text" ||
+      msg.isDeletedForEveryone
+    ) {
+      alert("You can edit only your own active text messages.");
+      return;
+    }
+
+    setEditingMessageId(msg._id);
+    setReplyingTo(null);
+    setMessage(msg.content || "");
+    setOpenMessageMenu(null);
+  };
+
+  // DELETE MESSAGE
+  const handleDeleteMessage = async (msg, deleteFor) => {
+    const senderId = msg.sender?._id || msg.sender;
+
+    if (deleteFor === "everyone") {
+      if (String(senderId) !== String(myId)) {
+        alert("You can delete only your own messages for everyone.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Delete this message for everyone?"
+      );
+
+      if (!confirmed) return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/messages/${msg._id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+        body: JSON.stringify({ deleteFor }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete message.");
+      }
+
+      const chatId = String(msg.conversationId || activeChat);
+
+      setMessagesByChat((previous) => ({
+        ...previous,
+        [chatId]:
+          deleteFor === "me"
+            ? (previous[chatId] || []).filter(
+                (item) => String(item._id) !== String(msg._id)
+              )
+            : (previous[chatId] || []).map((item) =>
+                String(item._id) === String(msg._id)
+                  ? {
+                      ...item,
+                      content: "",
+                      fileUrl: "",
+                      fileName: "",
+                      isDeletedForEveryone: true,
+                    }
+                  : item
+              ),
+      }));
+
+      setConversations((previous) =>
+        previous.map((item) => {
+          if (
+            String(item._id) !== chatId ||
+            String(item.lastMessage?._id) !== String(msg._id)
+          ) {
+            return item;
+          }
+
+          if (deleteFor === "me") {
+            return {
+              ...item,
+              lastMessage: {
+                ...item.lastMessage,
+                deletedFor: [
+                  ...(item.lastMessage.deletedFor || []),
+                  myId,
+                ],
+              },
+            };
+          }
+
+          return {
+            ...item,
+            lastMessage: {
+              ...item.lastMessage,
+              content: "",
+              fileUrl: "",
+              fileName: "",
+              isDeletedForEveryone: true,
+            },
+          };
+        })
+      );
+
+      setOpenMessageMenu(null);
+
+      if (String(editingMessageId) === String(msg._id)) {
+        setEditingMessageId(null);
+        setMessage("");
+      }
+
+      if (String(replyingTo?._id) === String(msg._id)) {
+        setReplyingTo(null);
+      }
+    } catch (error) {
+      console.error("Delete Message Error:", error);
+      alert(error.message);
+    }
+  };
+
+  // OPEN FORWARD MESSAGE WINDOW
+  const handleForwardMessage = (msg) => {
+    if (msg.isDeletedForEveryone) {
+      alert("Deleted messages cannot be forwarded.");
+      return;
+    }
+
+    setForwardingMessage(msg);
+    setForwardTargetId("");
+    setShowForwardModal(true);
+    setOpenMessageMenu(null);
+  };
+
+  // CLOSE FORWARD WINDOW
+  const closeForwardModal = () => {
+    if (forwarding) return;
+
+    setShowForwardModal(false);
+    setForwardingMessage(null);
+    setForwardTargetId("");
+  };
+
+  // CONFIRM FORWARD MESSAGE
+  const confirmForwardMessage = async () => {
+    if (!forwardingMessage || !forwardTargetId) {
+      alert("Please select a conversation.");
+      return;
+    }
+
+    try {
+      setForwarding(true);
+
+      const response = await fetch(
+        `${API_URL}/messages/${forwardingMessage._id}/forward`,
+        {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            targetConversationId: forwardTargetId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to forward message.");
+      }
+
+      const forwarded = data.data;
+
+      // UPDATE TARGET CONVERSATION LAST MESSAGE
+      setConversations((previous) =>
+        previous
+          .map((item) =>
+            String(item._id) === String(forwardTargetId)
+              ? {
+                  ...item,
+                  lastMessage: forwarded,
+                  updatedAt: forwarded.createdAt,
+                }
+              : item
+          )
+          .sort(byUpdated)
+      );
+
+      // UPDATE TARGET CHAT IF ITS MESSAGES ARE ALREADY LOADED
+      setMessagesByChat((previous) => {
+        const targetMessages = previous[forwardTargetId];
+
+        if (!targetMessages) return previous;
+
+        if (
+          targetMessages.some(
+            (item) => String(item._id) === String(forwarded._id)
+          )
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [forwardTargetId]: [...targetMessages, forwarded],
+        };
+      });
+
+      setShowForwardModal(false);
+      setForwardingMessage(null);
+      setForwardTargetId("");
+
+      alert("Message forwarded successfully!");
+    } catch (error) {
+      console.error("Forward Message Error:", error);
+      alert(error.message);
+    } finally {
+      setForwarding(false);
+    }
+  };
+
+  // SEND MESSAGE, REPLY MESSAGE OR SAVE EDIT
   const sendMessage = async (e) => {
     e.preventDefault();
 
@@ -365,39 +759,92 @@ useEffect(() => {
 
     if (!text || !activeChat) return;
 
-    setMessage("");
-
     try {
-      const response = await fetch(`${API_URL}/messages/${activeChat}`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ content: text }),
-      });
+      if (editingMessageId) {
+        // EDIT EXISTING MESSAGE
+        const response = await fetch(
+          `${API_URL}/messages/${editingMessageId}`,
+          {
+            method: "PUT",
+            headers: authHeaders(),
+            body: JSON.stringify({ content: text }),
+          }
+        );
 
-      const result = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to send message.");
-      }
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to edit message.");
+        }
 
-      const sent = result.data;
+        const updatedMessage = data.data;
 
-      setMessagesByChat((previous) => ({
-        ...previous,
-        [activeChat]: [...(previous[activeChat] || []), sent],
-      }));
+        setMessagesByChat((previous) => ({
+          ...previous,
+          [activeChat]: (previous[activeChat] || []).map((item) =>
+            String(item._id) === String(editingMessageId)
+              ? updatedMessage
+              : item
+          ),
+        }));
 
-      setConversations((previous) =>
-        previous
-          .map((item) =>
-            item._id === activeChat
-              ? { ...item, lastMessage: sent, updatedAt: sent.createdAt }
+        setConversations((previous) =>
+          previous.map((item) =>
+            String(item._id) === String(activeChat) &&
+            String(item.lastMessage?._id) === String(editingMessageId)
+              ? { ...item, lastMessage: updatedMessage }
               : item
           )
-          .sort(byUpdated)
-      );
+        );
+
+        setEditingMessageId(null);
+        setMessage("");
+      } else {
+        // SEND NORMAL MESSAGE OR REPLY
+        const response = await fetch(`${API_URL}/messages/${activeChat}`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            content: text,
+            replyToId: replyingTo?._id || null,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to send message.");
+        }
+
+        const sent = result.data;
+
+        setMessagesByChat((previous) => ({
+          ...previous,
+          [activeChat]: [
+            ...(previous[activeChat] || []),
+            sent,
+          ],
+        }));
+
+        setConversations((previous) =>
+          previous
+            .map((item) =>
+              String(item._id) === String(activeChat)
+                ? {
+                    ...item,
+                    lastMessage: sent,
+                    updatedAt: sent.createdAt,
+                  }
+                : item
+            )
+            .sort(byUpdated)
+        );
+
+        setReplyingTo(null);
+        setMessage("");
+      }
     } catch (error) {
-      setMessage(text);
+      console.error("Send/Edit Message Error:", error);
       alert(error.message);
     }
   };
@@ -407,11 +854,19 @@ useEffect(() => {
     info: getChatInfo(conversation, myId),
   }));
 
-  const filteredChats = chatList.filter((chat) => chat.info.type === activeTab);
+  const filteredChats = chatList.filter(
+    (chat) => chat.info.type === activeTab
+  );
 
-  const selectedChat = chatList.find((chat) => chat._id === activeChat);
+  const selectedChat = chatList.find(
+    (chat) => String(chat._id) === String(activeChat)
+  );
 
   const selectedMessages = messagesByChat[activeChat] || [];
+
+  const forwardTargets = chatList.filter(
+    (chat) => String(chat._id) !== String(activeChat)
+  );
 
   // Puthu message vandha keezha scroll aagum
   useEffect(() => {
@@ -422,27 +877,32 @@ useEffect(() => {
     <div className="messenger-page">
       <aside className="messenger-sidebar">
         <div className="messenger-brand">
-           <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
+          <img
+            src="/102893.jpg"
+            alt="AME Logo"
+            className="logo-image"
+          />
           <div>
             <h2>AME MESSENGER</h2>
             <p>Connect. Learn. Grow.</p>
           </div>
         </div>
 
-       <div className="messenger-profile">
-  <div className="messenger-avatar profile-avatar">
-    {currentUser?.profilePhoto ? (
-      <img
-        src={currentUser.profilePhoto}
-        alt="My Profile"
-        className="messenger-profile-image"
-      />
-    ) : (
-      currentUser?.username?.charAt(0).toUpperCase() || "M"
-    )}
-  </div>
+        {/* CURRENT USER PROFILE */}
+        <div className="messenger-profile">
+          <div className="messenger-avatar profile-avatar">
+            {currentUser?.profilePhoto ? (
+              <img
+                src={currentUser.profilePhoto}
+                alt="My Profile"
+                className="messenger-profile-image"
+              />
+            ) : (
+              currentUser?.username?.charAt(0).toUpperCase() || "M"
+            )}
+          </div>
           <div className="profile-info">
-            <h4>My Account</h4>
+            <h4>{currentUser?.username || "My Account"}</h4>
             <p>
               <span className="online-dot"></span> Available
             </p>
@@ -453,8 +913,9 @@ useEffect(() => {
         <div className="messenger-sidebar-heading">
           <h3>Messages</h3>
           <button
-           className="new-chat-btn"
-             onClick={() => navigate("/contact")}
+            type="button"
+            className="new-chat-btn"
+            onClick={() => navigate("/contact")}
             title="Create new chat"
           >
             <FaPlus />
@@ -463,6 +924,7 @@ useEffect(() => {
 
         <div className="messenger-tabs">
           <button
+            type="button"
             className={activeTab === "Personal" ? "active" : ""}
             onClick={() => setActiveTab("Personal")}
           >
@@ -470,6 +932,7 @@ useEffect(() => {
           </button>
 
           <button
+            type="button"
             className={activeTab === "Group" ? "active" : ""}
             onClick={() => setActiveTab("Group")}
           >
@@ -485,23 +948,24 @@ useEffect(() => {
         <div className="messenger-contact-list">
           {filteredChats.map((chat) => (
             <button
+              type="button"
               className={`messenger-contact ${
-                activeChat === chat._id ? "selected" : ""
+                String(activeChat) === String(chat._id) ? "selected" : ""
               }`}
               key={chat._id}
               onClick={() => openChat(chat._id)}
             >
               <div className={`messenger-avatar avatar-${chat.info.color}`}>
-  {chat.info.profilePhoto ? (
-    <img
-      src={chat.info.profilePhoto}
-      alt={chat.info.name}
-      className="messenger-user-photo"
-    />
-  ) : (
-    chat.info.avatar
-  )}
-</div>
+                {chat.info.profilePhoto ? (
+                  <img
+                    src={chat.info.profilePhoto}
+                    alt={chat.info.name}
+                    className="messenger-user-photo"
+                  />
+                ) : (
+                  chat.info.avatar
+                )}
+              </div>
 
               <div className="contact-details">
                 <div className="contact-top">
@@ -524,7 +988,9 @@ useEffect(() => {
             </p>
           )}
 
-          {loading && <p className="empty-chats">Loading conversations...</p>}
+          {loading && (
+            <p className="empty-chats">Loading conversations...</p>
+          )}
         </div>
 
         <div className="messenger-sidebar-footer">
@@ -538,26 +1004,28 @@ useEffect(() => {
           <>
             <header className="chat-header">
               <button
+                type="button"
                 className="mobile-back-btn"
                 onClick={() => setActiveChat(null)}
                 title="Back"
               >
                 <FaArrowLeft />
               </button>
- 
- <div
-  className={`messenger-avatar avatar-${selectedChat.info.color}`}
->
-  {selectedChat.info.profilePhoto ? (
-    <img
-      src={selectedChat.info.profilePhoto}
-      alt={selectedChat.info.name}
-      className="messenger-user-photo"
-    />
-  ) : (
-    selectedChat.info.avatar
-  )}
-</div>
+
+              {/* CHAT HEADER USER / GROUP PHOTO */}
+              <div
+                className={`messenger-avatar avatar-${selectedChat.info.color}`}
+              >
+                {selectedChat.info.profilePhoto ? (
+                  <img
+                    src={selectedChat.info.profilePhoto}
+                    alt={selectedChat.info.name}
+                    className="messenger-user-photo"
+                  />
+                ) : (
+                  selectedChat.info.avatar
+                )}
+              </div>
 
               <div className="chat-header-info">
                 <h3>{selectedChat.info.name}</h3>
@@ -565,16 +1033,17 @@ useEffect(() => {
               </div>
 
               <div className="chat-header-actions">
-                <button title="Voice call">
+                <button type="button" title="Voice call">
                   <FaPhone />
                 </button>
-                <button title="Video call">
+                <button type="button" title="Video call">
                   <FaVideo />
                 </button>
-                <button title="More options">
+                <button type="button" title="More options">
                   <FaEllipsisV />
                 </button>
                 <button
+                  type="button"
                   className="close-chat-btn"
                   title="Close chat"
                   onClick={() => setActiveChat(null)}
@@ -588,13 +1057,18 @@ useEffect(() => {
               <span>TODAY</span>
             </div>
 
+            {/* CHAT MESSAGES WITH ACTION MENU */}
             <section className="chat-messages">
               {selectedMessages.map((msg) => {
-                const sent = String(msg.sender?._id) === String(myId);
+                const senderId = msg.sender?._id || msg.sender;
+                const sent = String(senderId) === String(myId);
 
                 const seen = (msg.readBy || []).some(
-                  (item) => String(item.user) !== String(myId)
+                  (item) =>
+                    String(item.user?._id || item.user) !== String(myId)
                 );
+
+                const deleted = msg.isDeletedForEveryone;
 
                 return (
                   <div
@@ -603,16 +1077,126 @@ useEffect(() => {
                   >
                     {!sent && selectedChat.info.type === "Group" && (
                       <span className="group-sender">
-                        {msg.sender?.username}
+                        {msg.sender?.username || "Member"}
                       </span>
                     )}
 
                     <div className="message-bubble">
-                      <p>{msg.content || msg.fileName || "Attachment"}</p>
-                      <span className="message-time">
-                        {formatMessageTime(msg.createdAt)}{" "}
-                        {sent && (seen ? "✓✓" : "✓")}
-                      </span>
+                      {/* FORWARDED LABEL */}
+                      {!deleted && msg.forwardedFrom && (
+                        <div className="forwarded-label">
+                          <FaShare />
+                          <span>Forwarded</span>
+                        </div>
+                      )}
+
+                      {/* ORIGINAL REPLY MESSAGE */}
+                      {msg.replyTo && (
+                        <div className="reply-quoted-message">
+                          <strong>
+                            {msg.replyTo.sender?.username || "Original message"}
+                          </strong>
+                          <p>
+                            {msg.replyTo.isDeletedForEveryone
+                              ? "This message was deleted"
+                              : msg.replyTo.content ||
+                                msg.replyTo.fileName ||
+                                "Attachment"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* MESSAGE CONTENT */}
+                      {deleted ? (
+                        <p className="deleted-message-text">
+                          <FaTrash /> This message was deleted
+                        </p>
+                      ) : (
+                        <p>
+                          {msg.content || msg.fileName || "Attachment"}
+                        </p>
+                      )}
+
+                      {/* MESSAGE TIME AND ACTIONS */}
+                      <div className="message-bubble-footer">
+                        <span className="message-time">
+                          {formatMessageTime(msg.createdAt)}
+                          {msg.editedAt && (
+                            <small className="edited-label"> (edited)</small>
+                          )}
+                          {sent && !deleted && (
+                            <span className="read-tick">
+                              {seen ? "✓✓" : "✓"}
+                            </span>
+                          )}
+                        </span>
+
+                        <button
+                          type="button"
+                          className="message-actions-trigger"
+                          title="Message actions"
+                          aria-label="Message actions"
+                          onClick={() =>
+                            setOpenMessageMenu((previous) =>
+                              previous === msg._id ? null : msg._id
+                            )
+                          }
+                        >
+                          <FaEllipsisV />
+                        </button>
+                      </div>
+
+                      {/* MESSAGE ACTION MENU */}
+                      {openMessageMenu === msg._id && (
+                        <div className="message-actions-menu">
+                          {!deleted && (
+                            <button
+                              type="button"
+                              onClick={() => handleReplyMessage(msg)}
+                            >
+                              <FaReply /> Reply
+                            </button>
+                          )}
+
+                          {!deleted && sent && msg.messageType === "text" && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditMessage(msg)}
+                            >
+                              <FaEdit /> Edit
+                            </button>
+                          )}
+
+                          {!deleted && (
+                            <button
+                              type="button"
+                              onClick={() => handleForwardMessage(msg)}
+                            >
+                              <FaShare /> Forward
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="delete-action"
+                            onClick={() => handleDeleteMessage(msg, "me")}
+                          >
+                            <FaTrash /> Delete for me
+                          </button>
+
+                          {!deleted && sent && (
+                            <button
+                              type="button"
+                              className="delete-action"
+                              onClick={() =>
+                                handleDeleteMessage(msg, "everyone")
+                              }
+                            >
+                              <FaTrash /> Delete for everyone
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -635,7 +1219,49 @@ useEffect(() => {
               <div ref={messagesEndRef} />
             </section>
 
+            {/* MESSAGE INPUT + REPLY / EDIT PREVIEW */}
             <form className="chat-input-area" onSubmit={sendMessage}>
+              {replyingTo && (
+                <div className="message-compose-context">
+                  <div>
+                    <strong>
+                      Replying to {replyingTo.sender?.username || "Message"}
+                    </strong>
+                    <p>
+                      {replyingTo.content ||
+                        replyingTo.fileName ||
+                        "Attachment"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyingTo(null)}
+                    title="Cancel reply"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              )}
+
+              {editingMessageId && (
+                <div className="message-compose-context edit-context">
+                  <div>
+                    <strong>Editing message</strong>
+                    <p>Update your message and press save.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingMessageId(null);
+                      setMessage("");
+                    }}
+                    title="Cancel edit"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
                 className="input-icon-btn"
@@ -654,7 +1280,13 @@ useEffect(() => {
 
               <input
                 type="text"
-                placeholder="Type your message..."
+                placeholder={
+                  editingMessageId
+                    ? "Edit your message..."
+                    : replyingTo
+                      ? "Write a reply..."
+                      : "Type your message..."
+                }
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
@@ -663,27 +1295,110 @@ useEffect(() => {
                 type="submit"
                 className="send-message-btn"
                 disabled={!message.trim()}
-                title="Send message"
+                title={editingMessageId ? "Save changes" : "Send message"}
               >
-                <FaPaperPlane />
+                {editingMessageId ? <FaCheck /> : <FaPaperPlane />}
               </button>
             </form>
           </>
         ) : (
           <div className="empty-conversation welcome-chat">
             <div className="empty-chat-icon">
-              <FaComments/>
+              <FaComments />
             </div>
             <h2>Welcome to AME Messenger</h2>
             <p>Select a conversation to start messaging.</p>
           </div>
         )}
       </main>
+
+      {/* FORWARD MESSAGE MODAL */}
+      {showForwardModal && forwardingMessage && (
+        <div className="forward-modal-overlay">
+          <div className="forward-modal">
+            <div className="forward-modal-header">
+              <div>
+                <h3>Forward Message</h3>
+                <p>Select a contact or group.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeForwardModal}
+                disabled={forwarding}
+                aria-label="Close forward window"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="forward-message-preview">
+              <FaShare />
+              <p>
+                {forwardingMessage.content ||
+                  forwardingMessage.fileName ||
+                  "Attachment"}
+              </p>
+            </div>
+
+            <label className="forward-select-label">
+              Select conversation
+            </label>
+
+            <select
+              value={forwardTargetId}
+              onChange={(e) => setForwardTargetId(e.target.value)}
+            >
+              <option value="">Choose contact or group</option>
+              {forwardTargets.map((chat) => (
+                <option key={chat._id} value={chat._id}>
+                  {chat.info.type === "Group" ? "Group: " : ""}
+                  {chat.info.name}
+                </option>
+              ))}
+            </select>
+
+            {forwardTargets.length === 0 && (
+              <p className="forward-empty">
+                No other conversations available.
+              </p>
+            )}
+
+            <div className="forward-modal-actions">
+              <button
+                type="button"
+                className="forward-cancel-btn"
+                onClick={closeForwardModal}
+                disabled={forwarding}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="forward-send-btn"
+                onClick={confirmForwardMessage}
+                disabled={!forwardTargetId || forwarding}
+              >
+                {forwarding ? "Forwarding..." : "Forward"}
+                <FaShare />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default Messenger;
+
+
+
+
+
+
+
 
 
 

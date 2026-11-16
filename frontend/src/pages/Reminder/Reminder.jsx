@@ -32,7 +32,7 @@ const getDate = (days = 0) => {
   return `${year}-${month}-${day}`;
 };
 
-const API_URL = "http://localhost:5001/api/reminders";
+const API_URL = "https://obligation-known-reasons-mounts.trycloudflare.com/api/reminders";
 
 const authHeaders = () => ({
   "Content-Type": "application/json",

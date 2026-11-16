@@ -1,6 +1,7 @@
 import "../../App.css";
 import "./Login.css";
 import { useState } from "react";
+// const API_URL = import.meta.env.VITE_API_URL;
 import { Link, useNavigate } from "react-router-dom";
 import { FaGoogle, FaFacebookF, FaEyeSlash, FaEye } from "react-icons/fa";
 import API_URL from "../../services/api";
@@ -20,7 +21,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_URL}/auth/login`, {
+   
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

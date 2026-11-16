@@ -1,3 +1,4 @@
+
 .signup-page {
   min-height: 100vh;
   display: flex;
@@ -12,28 +13,26 @@
 .signup-page * {
   box-sizing: border-box;
 }
-.logo-image{
+
+.logo-image {
   height: 80px;
   width: 80px;
-  border-radius:5px ;
+  border-radius: 5px;
   object-fit: contain;
   display: block;
- 
 }
- 
 
-/* Header */
+/* HEADER */
+
 .signup-header {
   position: sticky;
   top: 0;
   z-index: 100;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-
   padding: 18px 6%;
   background: rgba(255, 255, 255, 0.9);
   border-bottom: 1px solid #e5edff;
@@ -67,7 +66,8 @@
   text-decoration: underline;
 }
 
-/* Layout */
+/* LAYOUT */
+
 .signup-main {
   flex: 1;
   display: flex;
@@ -76,7 +76,8 @@
   padding: 40px 20px;
 }
 
-/* Card */
+/* FORM CARD */
+
 .signup-form {
   width: 100%;
   max-width: 440px;
@@ -103,7 +104,8 @@
   font-size: 14px;
 }
 
-/* Error */
+/* ERROR */
+
 .signup-error {
   margin: 0 0 18px;
   padding: 11px 14px;
@@ -115,7 +117,8 @@
   font-weight: 500;
 }
 
-/* Fields */
+/* FIELDS */
+
 .form-field {
   display: flex;
   flex-direction: column;
@@ -158,14 +161,15 @@
   appearance: none;
   cursor: pointer;
   padding-right: 40px;
-  /* background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); */
   background-repeat: no-repeat;
   background-position: right 14px center;
 }
 
-/* Password */
+/* PASSWORD */
+
 .password-wrapper {
   position: relative;
+  width: 100%;
 }
 
 .password-wrapper input {
@@ -177,12 +181,10 @@
   top: 50%;
   right: 8px;
   transform: translateY(-50%);
-
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
-
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -196,7 +198,36 @@
   background: #f3f7ff;
 }
 
-/* Button */
+/* CONFIRM PASSWORD STATUS */
+
+.confirm-password-wrapper input {
+  border: 1px solid #d6e1f2;
+}
+
+.confirm-password-wrapper.password-matched input {
+  border-color: #16a34a;
+}
+
+.confirm-password-wrapper.password-not-matched input {
+  border-color: #dc2626;
+}
+
+.password-match-message {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.password-match-message.match {
+  color: #15803d;
+}
+
+.password-match-message.mismatch {
+  color: #dc2626;
+}
+
+/* BUTTON */
+
 .signup-button {
   width: 100%;
   min-height: 49px;
@@ -222,14 +253,22 @@
   transform: scale(0.99);
 }
 
-/* Keyboard focus */
+.signup-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* KEYBOARD FOCUS */
+
 .signup-page a:focus-visible,
 .signup-page button:focus-visible {
   outline: 3px solid rgba(56, 189, 248, 0.65);
   outline-offset: 3px;
 }
 
-/* Mobile */
+/* MOBILE */
+
 @media (max-width: 600px) {
   .signup-header {
     padding: 14px 5%;
@@ -249,4 +288,6 @@
     font-size: 24px;
   }
 }
+
+
 

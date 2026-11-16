@@ -16,7 +16,7 @@ const messageSchema = new mongoose.Schema({
 
     messageType: {
         type: String,
-        enum: ['text', 'image', 'file', 'voice','video'],
+        enum: ['text', 'image', 'file', 'voice', 'video'],
         default: 'text'
     },
 
@@ -35,6 +35,39 @@ const messageSchema = new mongoose.Schema({
         default: ''
     },
 
+    // REPLY TO ANOTHER MESSAGE
+    replyTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Message',
+        default: null
+    },
+
+    // ORIGINAL MESSAGE WHEN FORWARDED
+    forwardedFrom: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Message',
+        default: null
+    },
+
+    // MESSAGE EDIT INFORMATION
+    editedAt: {
+        type: Date,
+        default: null
+    },
+
+    // DELETE FOR EVERYONE
+    isDeletedForEveryone: {
+        type: Boolean,
+        default: false
+    },
+
+    // DELETE FOR ME
+    deletedFor: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+
+    // READ RECEIPTS
     readBy: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,

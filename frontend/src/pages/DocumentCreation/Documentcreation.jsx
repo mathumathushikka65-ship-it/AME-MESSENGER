@@ -4,7 +4,7 @@ import html2pdf from 'html2pdf.js';
 import './Documentcreation.css';
 
 /*  API  */
-const BASE = 'http://localhost:5001/api/documents';
+const BASE = 'https://obligation-known-reasons-mounts.trycloudflare.com/api/documents';
 
 const request = async (url, options = {}) => {
   const res = await fetch(url, {
