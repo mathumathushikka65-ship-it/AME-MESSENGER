@@ -577,7 +577,7 @@ export default function Admin() {
 
         <section className="admin-content">
           {error && (
-            <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: 8, marginBottom: 16 }}>
+            <div className="admin-inline-alert">
               {error}
             </div>
           )}
@@ -591,13 +591,13 @@ export default function Admin() {
 
       {showAddUser && (
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          className="admin-modal-overlay"
           onClick={() => setShowAddUser(false)}
         >
           <form
             onSubmit={addUser}
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "#fff", padding: 24, borderRadius: 12, width: 360, display: "flex", flexDirection: "column", gap: 12 }}
+            className="admin-confirm-panel"
           >
             <h3>Add User</h3>
             <input

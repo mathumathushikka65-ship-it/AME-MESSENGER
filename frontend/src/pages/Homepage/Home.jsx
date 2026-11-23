@@ -9,7 +9,6 @@ import {
   FaCalendarAlt,
   FaSearch,
   FaSignOutAlt,
-  FaPlus,
   FaBars,
   FaTimes,
   FaArrowRight,
@@ -30,21 +29,21 @@ function Home() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
- const [currentUser, setCurrentUser] = useState(getStoredUser);
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
 
-useEffect(() => {
-  const updateUser = () => {
-    setCurrentUser(getStoredUser());
-  };
+  useEffect(() => {
+    const updateUser = () => {
+      setCurrentUser(getStoredUser());
+    };
 
-  window.addEventListener("ameUserUpdated", updateUser);
-  window.addEventListener("storage", updateUser);
+    window.addEventListener("ameUserUpdated", updateUser);
+    window.addEventListener("storage", updateUser);
 
-  return () => {
-    window.removeEventListener("ameUserUpdated", updateUser);
-    window.removeEventListener("storage", updateUser);
-  };
-}, []);
+    return () => {
+      window.removeEventListener("ameUserUpdated", updateUser);
+      window.removeEventListener("storage", updateUser);
+    };
+  }, []);
 
   const features = [
     {
@@ -69,14 +68,14 @@ useEffect(() => {
       icon: <FaComments />,
       color: "green",
       action: "Open Messages",
-      path: "/Messenger"
+      path: "/Messenger",
     },
     {
       title: "Reminders",
       description: "Keep track of important tasks, classes and deadlines.",
       icon: <FaBell />,
       color: "orange",
-      action: " open Reminder",
+      action: "Open Reminders",
       path: "/Reminder",
     },
     {
@@ -85,6 +84,7 @@ useEffect(() => {
       icon: <FaCalendarAlt />,
       color: "pink",
       action: "View Calendar",
+      path: "/Calendar",
     },
   ];
 
@@ -116,7 +116,7 @@ useEffect(() => {
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-brand">
           <img src="/102893.jpg" alt="AME Logo" className="logo-image" />
-          <span>AME Messanger </span>
+          <span>AME Messenger</span>
 
           <button
             type="button"
@@ -151,16 +151,17 @@ useEffect(() => {
 
           <Link
             to="/DocumentCreation"
-            type="button"
             className="sidebar-link"
+            onClick={() => setMenuOpen(false)}
           >
             <FaFileAlt />
             <span>Documents</span>
           </Link>
 
           <Link
-            type="button"
+            to="/Messenger"
             className="sidebar-link"
+            onClick={() => setMenuOpen(false)}
           >
             <FaComments />
             <span>Messages</span>
@@ -175,14 +176,14 @@ useEffect(() => {
             <span>Reminders</span>
           </Link>
 
-          <button
-            type="button"
+          <Link
+            to="/Calendar"
             className="sidebar-link"
-            onClick={() => alert("Calendar page is coming soon!")}
+            onClick={() => setMenuOpen(false)}
           >
             <FaCalendarAlt />
             <span>Calendar</span>
-          </button>
+          </Link>
         </nav>
 
         <div className="sidebar-bottom">
@@ -250,17 +251,17 @@ useEffect(() => {
           </div>
 
           <div className="header-profile">
-           <Link to="/Setting" className="profile-avatar">
-  {currentUser?.profilePhoto ? (
-    <img
-      src={currentUser.profilePhoto}
-      alt="Profile"
-      className="home-profile-image"
-    />
-  ) : (
-    currentUser?.username?.charAt(0).toUpperCase() || "A"
-  )}
-</Link>
+            <Link to="/Setting" className="profile-avatar">
+              {currentUser?.profilePhoto ? (
+                <img
+                  src={currentUser.profilePhoto}
+                  alt="Profile"
+                  className="home-profile-image"
+                />
+              ) : (
+                currentUser?.username?.charAt(0).toUpperCase() || "A"
+              )}
+            </Link>
 
             <div className="profile-details">
               <strong>
@@ -386,7 +387,7 @@ useEffect(() => {
 
             <button
               type="button"
-              onClick={() => alert("Reminder page is coming soon!")}
+              onClick={() => navigate("/Reminder")}
             >
               Explore reminders
               <FaArrowRight />

@@ -56,7 +56,7 @@ export default function AdminLogin() {
       localStorage.setItem("ameAdminUser", JSON.stringify(data.user));
 
       // Navigate to Admin Dashboard
-      navigate("/Admin");
+      navigate("/Admin",{ replace: true });
 
     } catch (error) {
       setErrorMessage(error.message || "Something went wrong");

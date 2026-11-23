@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 
+
 import Login from "./pages/loginpages/Login";
 import Signup from "./pages/signuppages/Signup";
 import IntroductionPage from "./Introductionpage";
@@ -15,7 +16,10 @@ import Admin from "./pages/AdminDashboard/Admin";
 import AdminLogin from "./pages/AdminDashboard/AdminLogin";
 import Contact from "./pages/contectpage/Contact";
 import Document from "./pages/DocumentCreation/Documentcreation";
-
+import Calendar from "./pages/calander/Calander";
+import ForgotPassword from "./pages/loginpages/ForgotPassword";
+import ResetPassword from "./pages/loginpages/ResetPassword";
+import PublicRoute from "./components/PublicRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 
@@ -25,23 +29,34 @@ function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* Public Pages */}
-          <Route path="/" element={<IntroductionPage />} />
-          <Route path="/Login" element={<Login />} />
-          <Route path="/Signup" element={<Signup />} />
+        {/* Public Pages (login aanavanga ulla poga mudiyaadhu) */}
+<Route element={<PublicRoute />}>
+  <Route path="/" element={<IntroductionPage />} />
+  <Route path="/Login" element={<Login />} />
+  <Route path="/Signup" element={<Signup />} />
+</Route>
 
-          {/* Separate Admin Login */}
-          <Route path="/AdminLogin" element={<AdminLogin />} />
+{/* Idhu logged-in user-um use pannalam, so PublicRoute-ku veliya */}
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password" element={<ResetPassword />} />
+<Route path="/ame-control-x7k2" element={<AdminLogin />} />
 
           {/* Normal User Protected Pages */}
           <Route element={<ProtectedRoute />}>
             <Route path="/Home" element={<Home />} />
             <Route path="/Messenger" element={<Messenger />} />
             <Route path="/Assignment" element={<Assignment />} />
+            <Route path="/Assignments" element={<Assignment />} />
             <Route path="/Setting" element={<Setting />} />
             <Route path="/Reminder" element={<Reminder />} />
             <Route path="/Contact" element={<Contact />} />
             <Route path="/DocumentCreation" element={<Document />} />
+            <Route path="/Calendar" element={<Calendar />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/Documents" element={<Document />} />
+            <Route path="/Reminders" element={<Reminder />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/Settings" element={<Setting />} />
           </Route>
 
           {/* Admin Protected Page */}
@@ -59,4 +74,3 @@ function App() {
 }
 
 export default App;
-

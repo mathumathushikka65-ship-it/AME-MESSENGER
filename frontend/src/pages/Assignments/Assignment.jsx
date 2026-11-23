@@ -308,6 +308,13 @@ export default function Assignment() {
   const [availableGroups, setAvailableGroups] = useState([]);
   const [groupIds, setGroupIds] = useState([]);
 
+  // Recipient picker: temporary selections are only applied after Done is clicked.
+  const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
+  const [recipientTab, setRecipientTab] = useState("contacts");
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [draftRecipientIds, setDraftRecipientIds] = useState([]);
+  const [draftGroupIds, setDraftGroupIds] = useState([]);
+
   const [reviewForm, setReviewForm] = useState({
     marks: "",
     feedback: "",
@@ -316,6 +323,20 @@ export default function Assignment() {
   const showToast = (message, duration = 2500) => {
     setToast(message);
     window.setTimeout(() => setToast(""), duration);
+  };
+
+  const openRecipientPicker = () => {
+    setDraftRecipientIds([...recipientIds]);
+    setDraftGroupIds([...groupIds]);
+    setRecipientTab("contacts");
+    setRecipientSearch("");
+    setRecipientPickerOpen(true);
+  };
+
+  const confirmRecipientSelection = () => {
+    setRecipientIds(draftRecipientIds);
+    setGroupIds(draftGroupIds);
+    setRecipientPickerOpen(false);
   };
 
   // GET ASSIGNMENTS FROM BACKEND
@@ -491,6 +512,7 @@ export default function Assignment() {
     setTeacherLinkInput("");
     setRecipientIds([]);
     setGroupIds([]);
+    setRecipientPickerOpen(false);
     setModal("create");
   };
 
@@ -892,6 +914,8 @@ export default function Assignment() {
   };
 
   const closeModal = () => {
+    setRecipientPickerOpen(false);
+
     // Submit modal-a submit pannama close pannina, draft attachments-a clean pannum
     if (modal === "submit") {
       revokeAttachmentUrls(submissionForm.attachments);
@@ -1346,41 +1370,27 @@ export default function Assignment() {
 
               {role === "Teacher" && (
                 <>
-                  <div className="form-group">
-                    <label>Send to (select contacts and groups)</label>
-                    <div className="recipient-picker" style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #ddd", borderRadius: 8, padding: 8 }}>
-                      <strong>Contacts</strong>
-                      {availableStudents.length === 0 && <p><small>No contacts yet.</small></p>}
-                      {availableStudents.map((person) => (
-                        <label key={person._id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
-                          <input
-                            type="checkbox"
-                            checked={recipientIds.includes(String(person._id))}
-                            onChange={(event) => setRecipientIds((previous) =>
-                              event.target.checked
-                                ? [...previous, String(person._id)]
-                                : previous.filter((id) => id !== String(person._id)))}
-                          />
-                          {person.username} ({person.email})
-                        </label>
-                      ))}
-                      <strong>Groups</strong>
-                      {availableGroups.length === 0 && <p><small>No groups yet.</small></p>}
-                      {availableGroups.map((group) => (
-                        <label key={group._id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
-                          <input
-                            type="checkbox"
-                            checked={groupIds.includes(String(group._id))}
-                            onChange={(event) => setGroupIds((previous) =>
-                              event.target.checked
-                                ? [...previous, String(group._id)]
-                                : previous.filter((id) => id !== String(group._id)))}
-                          />
-                          {group.groupName || "Group"} ({(group.participants || []).length} members)
-                        </label>
-                      ))}
-                    </div>
-                    <small className="helper-text">Contacts-um groups-um select pannalam. Edhuvum select pannalana class-wide assignment aagum.</small>
+                  <div className="form-group recipient-field">
+                    <label>Send assignment to</label>
+                    <button
+                      type="button"
+                      className="recipient-trigger"
+                      onClick={openRecipientPicker}
+                    >
+                      <span className="recipient-trigger-icon"><FaUsers /></span>
+                      <span className="recipient-trigger-copy">
+                        <strong>Select contacts &amp; groups</strong>
+                        <small>
+                          {recipientIds.length + groupIds.length > 0
+                            ? `${recipientIds.length} contacts · ${groupIds.length} groups selected`
+                            : "Choose who should receive this assignment"}
+                        </small>
+                      </span>
+                      <span className="recipient-trigger-action">
+                        {recipientIds.length + groupIds.length > 0 ? "Edit" : "Select"} <span aria-hidden="true">›</span>
+                      </span>
+                    </button>
+                    <small className="helper-text">Leave both empty to keep the existing class-wide assignment behavior.</small>
                   </div>
                   <div className="form-group">
                     <label>Attach images, videos or documents</label>
@@ -1447,6 +1457,159 @@ export default function Assignment() {
               </div>
             </form>
           </div>
+
+          {recipientPickerOpen && (
+            <div
+              className="recipient-modal-overlay"
+              onClick={(event) => {
+                event.stopPropagation();
+                setRecipientPickerOpen(false);
+              }}
+            >
+              <section
+                className="recipient-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="recipient-modal-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="recipient-modal-header">
+                  <div>
+                    <h3 id="recipient-modal-title">Select recipients</h3>
+                    <p>Choose contacts or groups for this assignment</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="recipient-modal-close"
+                    aria-label="Close recipient selector"
+                    onClick={() => setRecipientPickerOpen(false)}
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+
+                <div className="recipient-tabs" role="tablist" aria-label="Recipient type">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={recipientTab === "contacts"}
+                    className={recipientTab === "contacts" ? "active" : ""}
+                    onClick={() => setRecipientTab("contacts")}
+                  >
+                    Contacts <span>{availableStudents.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={recipientTab === "groups"}
+                    className={recipientTab === "groups" ? "active" : ""}
+                    onClick={() => setRecipientTab("groups")}
+                  >
+                    Groups <span>{availableGroups.length}</span>
+                  </button>
+                </div>
+
+                <div className="recipient-search">
+                  <FaSearch />
+                  <input
+                    type="search"
+                    value={recipientSearch}
+                    onChange={(event) => setRecipientSearch(event.target.value)}
+                    placeholder={recipientTab === "contacts" ? "Search contacts" : "Search groups"}
+                    aria-label={recipientTab === "contacts" ? "Search contacts" : "Search groups"}
+                  />
+                </div>
+
+                <div className="recipient-list">
+                  {recipientTab === "contacts" && (
+                    <>
+                      {availableStudents.length === 0 ? (
+                        <div className="recipient-empty">No contacts yet.</div>
+                      ) : availableStudents.filter((person) => {
+                        const query = recipientSearch.trim().toLowerCase();
+                        return !query || `${person.username || ""} ${person.email || ""}`.toLowerCase().includes(query);
+                      }).length === 0 ? (
+                        <div className="recipient-empty">No contacts match your search.</div>
+                      ) : availableStudents.filter((person) => {
+                        const query = recipientSearch.trim().toLowerCase();
+                        return !query || `${person.username || ""} ${person.email || ""}`.toLowerCase().includes(query);
+                      }).map((person) => (
+                        <label key={person._id} className="recipient-option">
+                          <input
+                            type="checkbox"
+                            checked={draftRecipientIds.includes(String(person._id))}
+                            onChange={(event) => setDraftRecipientIds((previous) =>
+                              event.target.checked
+                                ? [...previous, String(person._id)]
+                                : previous.filter((id) => id !== String(person._id)))}
+                          />
+                          <span className="recipient-avatar">
+                            {(person.username || person.email || "C").charAt(0).toUpperCase()}
+                          </span>
+                          <span className="recipient-option-info">
+                            <strong>{person.username || "Contact"}</strong>
+                            <small>{person.email || "AME Messenger contact"}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+
+                  {recipientTab === "groups" && (
+                    <>
+                      {availableGroups.length === 0 ? (
+                        <div className="recipient-empty">No groups yet.</div>
+                      ) : availableGroups.filter((group) => {
+                        const query = recipientSearch.trim().toLowerCase();
+                        return !query || (group.groupName || "Group").toLowerCase().includes(query);
+                      }).length === 0 ? (
+                        <div className="recipient-empty">No groups match your search.</div>
+                      ) : availableGroups.filter((group) => {
+                        const query = recipientSearch.trim().toLowerCase();
+                        return !query || (group.groupName || "Group").toLowerCase().includes(query);
+                      }).map((group) => (
+                        <label key={group._id} className="recipient-option">
+                          <input
+                            type="checkbox"
+                            checked={draftGroupIds.includes(String(group._id))}
+                            onChange={(event) => setDraftGroupIds((previous) =>
+                              event.target.checked
+                                ? [...previous, String(group._id)]
+                                : previous.filter((id) => id !== String(group._id)))}
+                          />
+                          <span className="recipient-avatar recipient-group-avatar"><FaUsers /></span>
+                          <span className="recipient-option-info">
+                            <strong>{group.groupName || "Group"}</strong>
+                            <small>{(group.participants || []).length} members</small>
+                          </span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                <div className="recipient-modal-footer">
+                  <span>{draftRecipientIds.length} contacts · {draftGroupIds.length} groups</span>
+                  <div>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setRecipientPickerOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      onClick={confirmRecipientSelection}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
         </div>
       )}
 

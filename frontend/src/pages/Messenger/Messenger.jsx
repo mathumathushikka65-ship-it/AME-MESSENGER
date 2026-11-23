@@ -1,6 +1,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
+import html2pdf from "html2pdf.js";
 import API_URL from "../../services/api";
 import {
   FaSearch,
@@ -26,6 +27,8 @@ import {
   FaFileAlt,
   FaFolderOpen,
   FaDownload,
+  FaCamera,
+  FaFilePdf,
 } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Messenger.css";
@@ -230,6 +233,9 @@ function Messenger() {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [scanImages, setScanImages] = useState([]);
+  const [showScanner, setShowScanner] = useState(false);
+  const scanInputRef = useRef(null);
 
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -1082,7 +1088,7 @@ function Messenger() {
         </div>
 
         <div className="messenger-profile">
-          <div className="messenger-avatar profile-avatar">
+          <button type="button" className="messenger-avatar profile-avatar messenger-profile-open" onClick={() => navigate("/Setting")} aria-label="Open profile settings">
             {currentUser?.profilePhoto ? (
               <img
                 src={currentUser.profilePhoto}
@@ -1092,16 +1098,17 @@ function Messenger() {
             ) : (
               currentUser?.username?.charAt(0).toUpperCase() || "M"
             )}
-          </div>
+          </button>
 
-          <div className="profile-info">
+          <button type="button" className="profile-info messenger-profile-info-button" onClick={() => navigate("/Setting")}>
+
             <h4>{currentUser?.username || "My Account"}</h4>
             <p>
               <span className="online-dot"></span> Available
             </p>
-          </div>
+          </button>
 
-          <FaEllipsisV className="profile-menu" />
+          <button type="button" className="profile-menu messenger-profile-menu-button" onClick={() => navigate("/Setting")} aria-label="Open settings"><FaEllipsisV /></button>
         </div>
 
         <div className="messenger-sidebar-heading">
@@ -1110,7 +1117,7 @@ function Messenger() {
           <button
             type="button"
             className="new-chat-btn"
-            onClick={() => navigate("/contact")}
+            onClick={() => navigate("/Contact")}
             title="Create new chat"
           >
             <FaPlus />
@@ -1602,6 +1609,23 @@ function Messenger() {
               <input
                 type="file"
                 accept="image/*"
+                capture="environment"
+                multiple
+                ref={scanInputRef}
+                hidden
+                onChange={(event) => {
+                  const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+                  if (files.length) {
+                    const additions = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+                    setScanImages((previous) => [...previous, ...additions].slice(0, 12));
+                    setShowScanner(true);
+                  }
+                  event.target.value = "";
+                }}
+              />
+              <input
+                type="file"
+                accept="image/*"
                 ref={imageInputRef}
                 hidden
                 onChange={(e) => handleFileUpload(e, "image")}
@@ -1639,12 +1663,11 @@ function Messenger() {
 
                 {showAttachmentMenu && (
                   <div className="attachment-menu">
-                    <button
-                      type="button"
-                      onClick={() => imageInputRef.current?.click()}
-                    >
-                      <FaImage />
-                      <span>Photo</span>
+                    <button type="button" onClick={() => imageInputRef.current?.click()}>
+                      <FaImage /><span>Photo</span>
+                    </button>
+                    <button type="button" onClick={() => scanInputRef.current?.click()}>
+                      <FaCamera /><span>Scan to PDF</span>
                     </button>
 
                     <button
@@ -1788,6 +1811,48 @@ function Messenger() {
         )}
       </main>
 
+      {/* CAMERA SCANNER / PDF MAKER */}
+      {showScanner && (
+        <div className="forward-modal-overlay" onClick={() => { scanImages.forEach((page) => URL.revokeObjectURL(page.preview)); setScanImages([]); setShowScanner(false); }}>
+          <section className="ame-scan-modal" onClick={(event) => event.stopPropagation()}>
+            <header><div><h3>Camera Scanner</h3><p>Capture pages, arrange them, then export one PDF.</p></div><button type="button" onClick={() => { scanImages.forEach((page) => URL.revokeObjectURL(page.preview)); setScanImages([]); setShowScanner(false); }} aria-label="Close scanner"><FaTimes /></button></header>
+            <div className="ame-scan-pages">
+              {scanImages.map((page, index) => (
+                <div className="ame-scan-page" key={`${page.file.name}-${index}`}>
+                  <img src={page.preview} alt={`Scanned page ${index + 1}`} />
+                  <span>Page {index + 1}</span>
+                  <button type="button" onClick={() => setScanImages((items) => { URL.revokeObjectURL(page.preview); return items.filter((_, i) => i !== index); })}>Remove</button>
+                </div>
+              ))}
+              {!scanImages.length && <p>No pages captured. Use Add page to take a photo.</p>}
+            </div>
+            <footer>
+              <button type="button" onClick={() => scanInputRef.current?.click()}><FaCamera /> Add page</button>
+              <button type="button" disabled={!scanImages.length} onClick={async () => {
+                const wrapper = document.createElement("div");
+                wrapper.style.width = "190mm";
+                scanImages.forEach((page) => {
+                  const image = document.createElement("img");
+                  image.src = page.preview;
+                  image.style.width = "100%";
+                  image.style.maxHeight = "265mm";
+                  image.style.objectFit = "contain";
+                  image.style.display = "block";
+                  image.style.margin = "0 auto 8mm";
+                  wrapper.appendChild(image);
+                });
+                try {
+                  await Promise.all(Array.from(wrapper.querySelectorAll("img")).map((image) => image.decode().catch(() => {})));
+                  await html2pdf().set({ margin: 10, filename: `ame-scan-${Date.now()}.pdf`, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } }).from(wrapper).save();
+                  setShowScanner(false);
+                  setScanImages((items) => { items.forEach((page) => URL.revokeObjectURL(page.preview)); return []; });
+                } catch (error) { alert("Could not create PDF: " + error.message); }
+              }}><FaFilePdf /> Create PDF</button>
+            </footer>
+          </section>
+        </div>
+      )}
+
       {/* FORWARD MODAL */}
       {showForwardModal && forwardingMessage && (
         <div className="forward-modal-overlay">
@@ -1873,4 +1938,3 @@ function Messenger() {
 }
 
 export default Messenger;
-

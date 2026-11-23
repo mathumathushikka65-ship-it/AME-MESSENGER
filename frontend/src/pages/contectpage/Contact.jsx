@@ -1,7 +1,9 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import API_URL from "../../services/api";
 import "./Contact.css";
+import Cropper from "react-easy-crop";
 
 import {
   FaUserPlus,
@@ -19,7 +21,11 @@ import {
   FaFileAlt,
   FaBell,
   FaCalendarAlt,
-  FaCheck
+  FaCheck,
+  FaCrown,
+  FaUserMinus,
+  FaBan,
+  FaSignOutAlt
 } from "react-icons/fa";
 
 const ROLE_LABELS = {
@@ -39,6 +45,50 @@ const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("ameToken")}`
 });
 
+// GET LOGGED-IN USER ID FROM JWT
+const getLoggedInUserId = () => {
+  try {
+    const token = localStorage.getItem("ameToken");
+
+    if (!token) return "";
+
+    const payload = token.split(".")[1];
+
+    if (!payload) return "";
+
+    const base64 = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const decoded = JSON.parse(
+      atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "="))
+    );
+
+    return String(
+      decoded.userId ||
+      decoded.id ||
+      decoded._id ||
+      decoded.sub ||
+      ""
+    );
+
+  } catch (error) {
+    console.error("Unable to read login user ID:", error);
+    return "";
+  }
+};
+
+// GET USER ID FROM OBJECT OR ID
+const getUserId = (user) => {
+  if (!user) return "";
+
+  return String(
+    typeof user === "object"
+      ? user._id || user.id || ""
+      : user
+  );
+};
+
 // REMOVE DUPLICATE CONTACTS
 const dedupeContacts = (items = []) => {
   const seenUserIds = new Set();
@@ -57,10 +107,87 @@ const dedupeContacts = (items = []) => {
   });
 };
 
+const createCroppedImage = (imageSrc, pixelCrop, rotation = 0) => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Could not create image canvas."));
+        return;
+      }
+
+      const radians = (rotation * Math.PI) / 180;
+
+      const sin = Math.abs(Math.sin(radians));
+      const cos = Math.abs(Math.cos(radians));
+
+      const rotatedWidth =
+        image.width * cos + image.height * sin;
+
+      const rotatedHeight =
+        image.width * sin + image.height * cos;
+
+      const tempCanvas = document.createElement("canvas");
+      const tempCtx = tempCanvas.getContext("2d");
+
+      tempCanvas.width = rotatedWidth;
+      tempCanvas.height = rotatedHeight;
+
+      tempCtx.translate(rotatedWidth / 2, rotatedHeight / 2);
+      tempCtx.rotate(radians);
+      tempCtx.drawImage(
+        image,
+        -image.width / 2,
+        -image.height / 2
+      );
+
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+
+      ctx.drawImage(
+        tempCanvas,
+        pixelCrop.x,
+        pixelCrop.y,
+        pixelCrop.width,
+        pixelCrop.height,
+        0,
+        0,
+        pixelCrop.width,
+        pixelCrop.height
+      );
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Image cropping failed."));
+            return;
+          }
+
+          resolve(blob);
+        },
+        "image/jpeg",
+        0.9
+      );
+    };
+
+    image.onerror = () => reject(
+      new Error("Unable to load selected image.")
+    );
+
+    image.src = imageSrc;
+  });
+};
+
 export default function Contact() {
   const navigate = useNavigate();
 
   const role = "Student";
+
+  const [currentUserId] = useState(() => getLoggedInUserId());
 
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +224,24 @@ export default function Contact() {
   const [groupSearch, setGroupSearch] = useState("");
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // GROUP PROFILE PHOTO
+const [groupImage, setGroupImage] = useState(null);
+const [groupImagePreview, setGroupImagePreview] = useState("");
+const [crop, setCrop] = useState({ x: 0, y: 0 });
+const [zoom, setZoom] = useState(1);
+const [rotation, setRotation] = useState(0);
+const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+const [croppedImageBlob, setCroppedImageBlob] = useState(null);
+const [uploadingGroupImage, setUploadingGroupImage] = useState(false);
+
+const groupImageInputRef = useRef(null);
+
+  // GROUP MANAGEMENT
+  const [showInvitePanel, setShowInvitePanel] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteSelectedIds, setInviteSelectedIds] = useState([]);
+  const [groupActionLoading, setGroupActionLoading] = useState(false);
 
   // SUCCESS NOTIFICATION
   const showToast = (message) => {
@@ -149,40 +294,45 @@ export default function Contact() {
   }, []);
 
   // LOAD GROUPS
-  useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        const response = await fetch(`${API_URL}/conversations`, {
-          headers: authHeaders()
-        });
+  const refreshGroups = async () => {
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: authHeaders()
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to load groups.");
-        }
-
-        const conversations = Array.isArray(data)
-          ? data
-          : Array.isArray(data.conversations)
-            ? data.conversations
-            : [];
-
-        const groupConversations = conversations.filter(
-          (conversation) => conversation.type === "group"
-        );
-
-        setGroups(groupConversations);
-
-      } catch (error) {
-        console.error("Load groups error:", error);
-
-      } finally {
-        setGroupsLoading(false);
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load groups.");
       }
+
+      const conversations = Array.isArray(data)
+        ? data
+        : Array.isArray(data.conversations)
+          ? data.conversations
+          : [];
+
+      const groupConversations = conversations.filter(
+        (conversation) => conversation.type === "group"
+      );
+
+      setGroups(groupConversations);
+
+      return groupConversations;
+
+    } catch (error) {
+      console.error("Load groups error:", error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    const loadInitialGroups = async () => {
+      await refreshGroups();
+      setGroupsLoading(false);
     };
 
-    loadGroups();
+    loadInitialGroups();
   }, []);
 
   // HANDLE FORM INPUT
@@ -274,6 +424,22 @@ export default function Contact() {
     setShowForm(true);
   };
 
+  // BLOCK / UNBLOCK CONTACT
+  const toggleBlockContact = async (contact) => {
+    const nextBlocked = !contact.isBlocked;
+    try {
+      const response = await fetch(`${API_URL}/contacts/${contact._id}/block`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ isBlocked: nextBlocked })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to update contact.");
+      setContacts((items) => items.map((item) => item._id === contact._id ? data.contact : item));
+      showToast(data.message || (nextBlocked ? "Contact blocked" : "Contact unblocked"));
+    } catch (error) { alert(error.message); }
+  };
+
   // DELETE CONTACT
   const deleteContact = async (id) => {
     if (!window.confirm("Are you sure you want to delete this contact?")) {
@@ -363,7 +529,36 @@ export default function Contact() {
   // VIEW GROUP MEMBERS
   const viewGroupMembers = (group) => {
     setSelectedGroup(group);
+    setShowInvitePanel(false);
+    setInviteSelectedIds([]);
+    setInviteSearch("");
     setShowMembersModal(true);
+  };
+
+  // CHECK IF LOGGED-IN USER IS GROUP ADMIN
+  const isGroupAdmin = (group) => {
+    const adminId = getUserId(group?.groupAdmin);
+
+    return Boolean(
+      currentUserId &&
+      adminId &&
+      currentUserId === adminId
+    );
+  };
+
+  // UPDATE GROUP IN FRONTEND STATE
+  const updateGroupState = (updatedGroup) => {
+    if (!updatedGroup?._id) return;
+
+    setSelectedGroup(updatedGroup);
+
+    setGroups((previous) =>
+      previous.map((group) =>
+        String(group._id) === String(updatedGroup._id)
+          ? updatedGroup
+          : group
+      )
+    );
   };
 
   // OPEN GROUP MEMBER PERSONAL CHAT
@@ -372,6 +567,12 @@ export default function Contact() {
       typeof member === "object" ? member?._id : member;
 
     if (!memberId || openingMemberId) return;
+
+    // Do not open personal chat with yourself
+    if (String(memberId) === currentUserId) {
+      showToast("This is your own account.");
+      return;
+    }
 
     try {
       setOpeningMemberId(String(memberId));
@@ -414,12 +615,21 @@ export default function Contact() {
   };
 
   // OPEN GROUP CREATION WINDOW
-  const openGroupForm = () => {
-    setGroupName("");
-    setGroupSearch("");
-    setSelectedMemberIds([]);
-    setShowGroupForm(true);
-  };
+const openGroupForm = () => {
+  setGroupName("");
+  setGroupSearch("");
+  setSelectedMemberIds([]);
+
+  setGroupImage(null);
+  setGroupImagePreview("");
+  setCrop({ x: 0, y: 0 });
+  setZoom(1);
+  setRotation(0);
+  setCroppedAreaPixels(null);
+  setCroppedImageBlob(null);
+
+  setShowGroupForm(true);
+};
 
   // SELECT / UNSELECT GROUP MEMBERS
   const toggleGroupMember = (userId) => {
@@ -432,33 +642,272 @@ export default function Contact() {
     );
   };
 
-  // CREATE GROUP
-  const createGroup = async (e) => {
-    e.preventDefault();
+// SELECT GROUP PROFILE PHOTO
+const handleGroupImageSelect = (e) => {
+  const file = e.target.files?.[0];
 
-    const cleanName = groupName.trim();
+  if (!file) return;
 
-    if (!cleanName) {
-      alert("Please enter a group name.");
-      return;
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file.");
+    e.target.value = "";
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Image size must be less than 5 MB.");
+    e.target.value = "";
+    return;
+  }
+
+  if (groupImagePreview) {
+    URL.revokeObjectURL(groupImagePreview);
+  }
+
+  const previewUrl = URL.createObjectURL(file);
+
+  setGroupImage(file);
+  setGroupImagePreview(previewUrl);
+  setCrop({ x: 0, y: 0 });
+  setZoom(1);
+  setRotation(0);
+  setCroppedAreaPixels(null);
+  setCroppedImageBlob(null);
+};
+
+// SAVE CROP AREA
+const handleCropComplete = (croppedArea, croppedAreaPixels) => {
+  setCroppedAreaPixels(croppedAreaPixels);
+};
+
+// REMOVE SELECTED GROUP PHOTO
+const removeGroupImage = () => {
+  if (groupImagePreview) {
+    URL.revokeObjectURL(groupImagePreview);
+  }
+
+  setGroupImage(null);
+  setGroupImagePreview("");
+  setCrop({ x: 0, y: 0 });
+  setZoom(1);
+  setRotation(0);
+  setCroppedAreaPixels(null);
+  setCroppedImageBlob(null);
+
+  if (groupImageInputRef.current) {
+    groupImageInputRef.current.value = "";
+  }
+};
+
+// CROP GROUP PHOTO
+const prepareGroupImage = async () => {
+  if (!groupImagePreview || !croppedAreaPixels) {
+    return null;
+  }
+
+  const blob = await createCroppedImage(
+    groupImagePreview,
+    croppedAreaPixels,
+    rotation
+  );
+
+  setCroppedImageBlob(blob);
+
+  return blob;
+};
+
+// UPLOAD GROUP PHOTO TO CLOUDINARY
+const uploadGroupImage = async (blob) => {
+  if (!blob) return "";
+
+  const formData = new FormData();
+
+  formData.append("file", blob, "group-profile.jpg");
+
+  const response = await fetch(`${API_URL}/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("ameToken")}`
+    },
+    body: formData
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Group photo upload failed.");
+  }
+
+  const imageUrl = data.data?.fileUrl;
+
+  if (!imageUrl) {
+    throw new Error("Uploaded image URL was not returned.");
+  }
+
+  return imageUrl;
+};
+
+ // CREATE GROUP WITH PROFILE PHOTO
+const createGroup = async (e) => {
+  e.preventDefault();
+
+  const cleanName = groupName.trim();
+
+  if (!cleanName) {
+    alert("Please enter a group name.");
+    return;
+  }
+
+  if (selectedMemberIds.length < 1) {
+    alert("Please select at least one contact for the group.");
+    return;
+  }
+
+  try {
+    setCreatingGroup(true);
+
+    let uploadedImageUrl = "";
+
+    // Upload image only when a photo is selected
+    if (groupImagePreview) {
+      setUploadingGroupImage(true);
+
+      const croppedBlob = await prepareGroupImage();
+
+      if (!croppedBlob) {
+        throw new Error("Please crop the group photo before saving.");
+      }
+
+      uploadedImageUrl = await uploadGroupImage(croppedBlob);
+
+      setUploadingGroupImage(false);
     }
 
-    if (selectedMemberIds.length < 1) {
-      alert("Please select at least one contact for the group.");
+    const response = await fetch(
+      `${API_URL}/conversations/group`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          groupName: cleanName,
+          participants: selectedMemberIds,
+          groupImage: uploadedImageUrl
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Unable to create group.");
+    }
+
+    const createdConversation = data.conversation;
+
+    if (!createdConversation?._id) {
+      throw new Error(
+        "Group was created, but its conversation ID was not returned."
+      );
+    }
+
+    setGroups((previous) => [
+      createdConversation,
+      ...previous.filter(
+        (group) =>
+          String(group._id) !== String(createdConversation._id)
+      )
+    ]);
+
+    if (groupImagePreview) {
+      URL.revokeObjectURL(groupImagePreview);
+    }
+
+    setShowGroupForm(false);
+    setGroupName("");
+    setGroupSearch("");
+    setSelectedMemberIds([]);
+    setGroupImage(null);
+    setGroupImagePreview("");
+    setCroppedAreaPixels(null);
+    setCroppedImageBlob(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setRotation(0);
+
+    showToast("Group created successfully! Opening group chat...");
+
+    window.setTimeout(() => {
+      navigate("/Messenger", {
+        state: {
+          conversationId: createdConversation._id
+        }
+      });
+    }, 500);
+
+  } catch (error) {
+    alert(error.message);
+
+  } finally {
+    setCreatingGroup(false);
+    setUploadingGroupImage(false);
+  }
+};
+
+  // OPEN INVITE MEMBERS PANEL
+  const openInvitePanel = () => {
+    setInviteSelectedIds([]);
+    setInviteSearch("");
+    setShowInvitePanel(true);
+  };
+
+  // SELECT / UNSELECT INVITE CONTACT
+  const toggleInviteMember = (userId) => {
+    const id = String(userId);
+
+    setInviteSelectedIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((memberId) => memberId !== id)
+        : [...previous, id]
+    );
+  };
+
+  // CONTACTS NOT ALREADY IN GROUP
+  const availableInviteContacts = contacts.filter((contact) => {
+    const userId = String(contact.contactUser?._id || "");
+
+    const existingIds = (selectedGroup?.participants || []).map(
+      (member) => getUserId(member)
+    );
+
+    const displayName =
+      contact.nickname || contact.contactUser?.username || "";
+
+    const email = contact.contactUser?.email || "";
+    const query = inviteSearch.toLowerCase().trim();
+
+    return (
+      userId &&
+      !existingIds.includes(userId) &&
+      `${displayName} ${email}`.toLowerCase().includes(query)
+    );
+  });
+
+  // INVITE MEMBERS - ADMIN ONLY
+  const inviteMembers = async () => {
+    if (!selectedGroup?._id || inviteSelectedIds.length === 0) {
       return;
     }
 
     try {
-      setCreatingGroup(true);
+      setGroupActionLoading(true);
 
       const response = await fetch(
-        `${API_URL}/conversations/group`,
+        `${API_URL}/conversations/group/${selectedGroup._id}/members`,
         {
           method: "POST",
           headers: authHeaders(),
           body: JSON.stringify({
-            groupName: cleanName,
-            participants: selectedMemberIds
+            userIds: inviteSelectedIds
           })
         }
       );
@@ -466,46 +915,117 @@ export default function Contact() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Unable to create group.");
+        throw new Error(data.message || "Unable to invite members.");
       }
 
-      const createdConversation = data.conversation;
-
-      if (!createdConversation?._id) {
-        throw new Error(
-          "Group was created, but its conversation ID was not returned."
-        );
+      if (data.conversation) {
+        updateGroupState(data.conversation);
       }
 
-      // ADD NEW GROUP TO LIST
-      setGroups((previous) => [
-        createdConversation,
-        ...previous.filter(
-          (group) =>
-            String(group._id) !== String(createdConversation._id)
-        )
-      ]);
+      setShowInvitePanel(false);
+      setInviteSelectedIds([]);
+      setInviteSearch("");
 
-      setShowGroupForm(false);
-      setGroupName("");
-      setGroupSearch("");
-      setSelectedMemberIds([]);
-
-      showToast("Group created successfully! Opening group chat...");
-
-      window.setTimeout(() => {
-        navigate("/Messenger", {
-          state: {
-            conversationId: createdConversation._id
-          }
-        });
-      }, 500);
+      showToast(data.message || "Members added successfully!");
 
     } catch (error) {
       alert(error.message);
 
     } finally {
-      setCreatingGroup(false);
+      setGroupActionLoading(false);
+    }
+  };
+
+  // REMOVE GROUP MEMBER - ADMIN ONLY
+  const removeGroupMember = async (member) => {
+    const memberId = getUserId(member);
+
+    if (!selectedGroup?._id || !memberId) return;
+
+    const memberName =
+      typeof member === "object"
+        ? member.username || member.email || "this member"
+        : "this member";
+
+    if (!window.confirm(`Are you sure you want to remove ${memberName} from this group?`)) {
+      return;
+    }
+
+    try {
+      setGroupActionLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/conversations/group/${selectedGroup._id}/members/${memberId}`,
+        {
+          method: "DELETE",
+          headers: authHeaders()
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to remove member.");
+      }
+
+      if (data.conversation) {
+        updateGroupState(data.conversation);
+      }
+
+      showToast(data.message || "Member removed successfully!");
+
+    } catch (error) {
+      alert(error.message);
+
+    } finally {
+      setGroupActionLoading(false);
+    }
+  };
+
+  // LEAVE GROUP - ANY MEMBER
+  const leaveGroup = async () => {
+    if (!selectedGroup?._id) return;
+
+    if (!window.confirm(
+      `Are you sure you want to leave "${selectedGroup.groupName}"?`
+    )) {
+      return;
+    }
+
+    try {
+      setGroupActionLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/conversations/group/${selectedGroup._id}/leave`,
+        {
+          method: "POST",
+          headers: authHeaders()
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to leave group.");
+      }
+
+      setGroups((previous) =>
+        previous.filter(
+          (group) => String(group._id) !== String(selectedGroup._id)
+        )
+      );
+
+      setSelectedGroup(null);
+      setShowMembersModal(false);
+      setShowInvitePanel(false);
+
+      showToast(data.message || "You left the group successfully!");
+
+    } catch (error) {
+      alert(error.message);
+
+    } finally {
+      setGroupActionLoading(false);
     }
   };
 
@@ -542,6 +1062,9 @@ export default function Contact() {
   const onlineCount = contacts.filter(
     (contact) => contact.contactUser?.isOnline
   ).length;
+
+  // CURRENT GROUP ADMIN STATUS
+  const selectedGroupIsAdmin = isGroupAdmin(selectedGroup);
 
   return (
     <div className="contacts-layout">
@@ -740,8 +1263,8 @@ export default function Contact() {
                   <div className="contact-details">
 
                     <h3>
-                      {contact.nickname ||
-                        contact.contactUser.username}
+                      {contact.nickname || contact.contactUser.username}
+                      {contact.isBlocked ? <small className="contact-blocked-label"> · Blocked</small> : null}
                     </h3>
 
                     <p>
@@ -763,7 +1286,7 @@ export default function Contact() {
                     <button
                       type="button"
                       title="Message"
-                      disabled={openingContactId === contact._id}
+                      disabled={openingContactId === contact._id || contact.isBlocked}
                       onClick={() => startChat(contact)}
                     >
                       <FaComments />
@@ -777,11 +1300,10 @@ export default function Contact() {
                       <FaEdit />
                     </button>
 
-                    <button
-                      type="button"
-                      title="Delete"
-                      onClick={() => deleteContact(contact._id)}
-                    >
+                    <button type="button" title={contact.isBlocked ? "Unblock" : "Block"} onClick={() => toggleBlockContact(contact)}>
+                      <FaBan />
+                    </button>
+                    <button type="button" title="Delete" onClick={() => deleteContact(contact._id)}>
                       <FaTrash />
                     </button>
 
@@ -926,7 +1448,10 @@ export default function Contact() {
         {showMembersModal && selectedGroup && (
           <div
             className="group-modal-overlay"
-            onClick={() => setShowMembersModal(false)}
+            onClick={() => {
+              setShowMembersModal(false);
+              setShowInvitePanel(false);
+            }}
           >
 
             <div
@@ -949,12 +1474,22 @@ export default function Contact() {
                   <p>
                     {selectedGroup.participants?.length || 0} members in this group
                   </p>
+
+                  {selectedGroupIsAdmin && (
+                    <span className="group-admin-badge">
+                      <FaCrown /> You are the Group Admin
+                    </span>
+                  )}
+
                 </div>
 
                 <button
                   type="button"
                   className="group-modal-close"
-                  onClick={() => setShowMembersModal(false)}
+                  onClick={() => {
+                    setShowMembersModal(false);
+                    setShowInvitePanel(false);
+                  }}
                   aria-label="Close members"
                 >
                   <FaTimes />
@@ -969,10 +1504,7 @@ export default function Contact() {
 
                   selectedGroup.participants.map((member, index) => {
 
-                    const memberId =
-                      typeof member === "object"
-                        ? member?._id
-                        : member;
+                    const memberId = getUserId(member);
 
                     const displayName =
                       typeof member === "object"
@@ -991,6 +1523,12 @@ export default function Contact() {
                       typeof member === "object"
                         ? member.profilePhoto
                         : null;
+
+                    const isAdmin =
+                      getUserId(selectedGroup.groupAdmin) === memberId;
+
+                    const isCurrentUser =
+                      currentUserId === memberId;
 
                     return (
                       <div
@@ -1012,28 +1550,55 @@ export default function Contact() {
                         </div>
 
                         <div className="group-member-view-details">
-                          <strong>{displayName}</strong>
+                          <strong>
+                            {displayName}
+                            {isCurrentUser && " (You)"}
+                          </strong>
+
                           <small>{memberEmail}</small>
+
+                          {isAdmin && (
+                            <small className="group-admin-label">
+                              <FaCrown /> Group Admin
+                            </small>
+                          )}
                         </div>
 
-                        <button
-                          type="button"
-                          className="member-personal-chat-btn"
-                          onClick={() =>
-                            startMemberPersonalChat(member)
-                          }
-                          disabled={
-                            !memberId ||
-                            openingMemberId === String(memberId)
-                          }
-                          title="Open personal chat"
-                        >
-                          <FaComments />
+                        {!isCurrentUser && (
+                          <button
+                            type="button"
+                            className="member-personal-chat-btn"
+                            onClick={() =>
+                              startMemberPersonalChat(member)
+                            }
+                            disabled={
+                              !memberId ||
+                              openingMemberId === String(memberId)
+                            }
+                            title="Open personal chat"
+                          >
+                            <FaComments />
 
-                          {openingMemberId === String(memberId)
-                            ? "Opening..."
-                            : "Message"}
-                        </button>
+                            {openingMemberId === String(memberId)
+                              ? "Opening..."
+                              : "Message"}
+                          </button>
+                        )}
+
+                        {selectedGroupIsAdmin &&
+                          !isAdmin &&
+                          !isCurrentUser && (
+                            <button
+                              type="button"
+                              className="group-member-remove-btn"
+                              title="Remove member"
+                              disabled={groupActionLoading}
+                              onClick={() => removeGroupMember(member)}
+                            >
+                              <FaUserMinus />
+                              Remove
+                            </button>
+                          )}
 
                       </div>
                     );
@@ -1047,16 +1612,149 @@ export default function Contact() {
 
               </div>
 
+              {/* INVITE MEMBERS PANEL */}
+              {showInvitePanel && selectedGroupIsAdmin && (
+                <div className="group-invite-panel">
+
+                  <div className="group-invite-heading">
+                    <h3>Invite Members</h3>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowInvitePanel(false)}
+                      aria-label="Close invite panel"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+
+                  <p>Select saved contacts to add to this group.</p>
+
+                  <div className="group-member-search">
+                    <FaSearch />
+
+                    <input
+                      type="search"
+                      value={inviteSearch}
+                      onChange={(e) => setInviteSearch(e.target.value)}
+                      placeholder="Search contacts..."
+                    />
+                  </div>
+
+                  <div className="group-member-list">
+
+                    {availableInviteContacts.length === 0 ? (
+                      <div className="group-no-members">
+                        No available contacts to invite.
+                      </div>
+                    ) : (
+                      availableInviteContacts.map((contact) => {
+                        const userId = String(
+                          contact.contactUser?._id || ""
+                        );
+
+                        const checked =
+                          inviteSelectedIds.includes(userId);
+
+                        const displayName =
+                          contact.nickname ||
+                          contact.contactUser?.username ||
+                          "Unknown user";
+
+                        return (
+                          <label
+                            className={`group-member-option ${
+                              checked ? "selected" : ""
+                            }`}
+                            key={contact._id}
+                          >
+
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleInviteMember(userId)}
+                            />
+
+                            <span className="group-member-avatar">
+                              {contact.contactUser?.profilePhoto ? (
+                                <img
+                                  src={contact.contactUser.profilePhoto}
+                                  alt={displayName}
+                                />
+                              ) : (
+                                <FaUserCircle />
+                              )}
+                            </span>
+
+                            <span className="group-member-copy">
+                              <strong>{displayName}</strong>
+                              <small>
+                                {contact.contactUser?.email}
+                              </small>
+                            </span>
+
+                            <span className="group-member-check">
+                              {checked && <FaCheck />}
+                            </span>
+
+                          </label>
+                        );
+                      })
+                    )}
+
+                  </div>
+
+                  <button
+                    type="button"
+                    className="group-invite-submit"
+                    disabled={
+                      groupActionLoading ||
+                      inviteSelectedIds.length === 0
+                    }
+                    onClick={inviteMembers}
+                  >
+                    {groupActionLoading
+                      ? "Adding..."
+                      : `Add Selected Members (${inviteSelectedIds.length})`}
+
+                    <FaUserPlus />
+                  </button>
+
+                </div>
+              )}
+
               <div className="group-members-footer">
+
+                {selectedGroupIsAdmin && !showInvitePanel && (
+                  <button
+                    type="button"
+                    className="group-invite-btn"
+                    onClick={openInvitePanel}
+                    disabled={groupActionLoading}
+                  >
+                    <FaUserPlus /> Invite Members
+                  </button>
+                )}
 
                 <button
                   type="button"
                   onClick={() => {
                     setShowMembersModal(false);
+                    setShowInvitePanel(false);
                     startGroupChat(selectedGroup);
                   }}
                 >
                   <FaComments /> Open Group Chat
+                </button>
+
+                <button
+                  type="button"
+                  className="group-leave-btn"
+                  onClick={leaveGroup}
+                  disabled={groupActionLoading}
+                >
+                  <FaSignOutAlt />
+                  {groupActionLoading ? "Please wait..." : "Leave Group"}
                 </button>
 
               </div>
@@ -1197,6 +1895,105 @@ export default function Contact() {
 
               <form onSubmit={createGroup}>
 
+                {/* GROUP PROFILE PHOTO EDITOR */}
+<div className="group-profile-editor">
+
+  <div className="group-profile-heading">
+    <h3>Group Profile Photo</h3>
+    <p>Add a photo for your group (optional).</p>
+  </div>
+
+  <div className="group-profile-upload">
+
+    {groupImagePreview ? (
+      <div className="group-profile-crop-wrapper">
+
+        <div className="group-profile-crop-area">
+          <Cropper
+            image={groupImagePreview}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={1}
+            cropShape="round"
+            showGrid={true}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={handleCropComplete}
+          />
+        </div>
+
+        <div className="group-crop-controls">
+
+          <label>
+            Zoom
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+            />
+            <span>{zoom.toFixed(1)}x</span>
+          </label>
+
+          <div className="group-rotate-controls">
+            <button
+              type="button"
+              onClick={() => setRotation((previous) => previous - 90)}
+            >
+              ↶ Rotate Left
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRotation((previous) => previous + 90)}
+            >
+              ↷ Rotate Right
+            </button>
+          </div>
+
+        </div>
+
+        <button
+          type="button"
+          className="group-photo-remove-btn"
+          onClick={removeGroupImage}
+        >
+          <FaTrash /> Remove Photo
+        </button>
+
+      </div>
+
+    ) : (
+      <div className="group-profile-placeholder">
+        <FaUsers />
+        <span>No group photo selected</span>
+      </div>
+    )}
+
+    <input
+      ref={groupImageInputRef}
+      type="file"
+      accept="image/*"
+      onChange={handleGroupImageSelect}
+      hidden
+    />
+
+    <button
+      type="button"
+      className="group-photo-select-btn"
+      onClick={() => groupImageInputRef.current?.click()}
+    >
+      <FaUserPlus />
+      {groupImagePreview ? "Change Photo" : "Choose Group Photo"}
+    </button>
+
+  </div>
+</div>
+
                 <div className="group-name-field">
                   <label htmlFor="new-group-name">
                     Group name *
@@ -1311,8 +2108,9 @@ export default function Contact() {
                   <button
                     type="button"
                     className="group-cancel-btn"
-                    onClick={() => setShowGroupForm(false)}
-                    disabled={creatingGroup}
+                   onClick={() => {removeGroupImage();
+                                   setShowGroupForm(false);}}
+          disabled={creatingGroup}
                   >
                     Cancel
                   </button>

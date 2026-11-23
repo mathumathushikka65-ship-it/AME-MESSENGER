@@ -33,6 +33,8 @@ const console = require('console');
 
 // App setup
 const app = express();
+app.set("trust proxy", 1);
+
 const server = http.createServer(app);
 
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
@@ -56,8 +58,34 @@ const io = new Server(server, {
 app.set('io', io);
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    process.env.FRONTEND_URL?.replace(/\/$/, '')
+].filter(Boolean);
+
+app.use(cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
 app.use(express.json({ limit: '5mb' }));
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many attempts. Please try again later.' }
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/admin-auth/login', authLimiter);
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/api/reminders", reminderRoutes);
 
@@ -75,6 +103,7 @@ app.use('/api/admin', require('./Routes/adminRoutes'));
 app.use('/api/admin-auth', adminAuthRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/upload', require('./Routes/upload'));
 
 console.log('PAYMENT ROUTE MOUNTED');
 console.log('USER ROUTE MOUNTED');
@@ -107,7 +136,7 @@ app.get('/debug/routes', (req, res) => {
 const onlineUsers = new Map();
 
 // Socket authentication
-io.use((socket, next) => {
+io.use(async (socket, next) => {
     try {
         const token = socket.handshake.auth?.token;
 
@@ -117,8 +146,13 @@ io.use((socket, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        socket.userId = decoded.userId;
+        const account = await User.findById(decoded.userId).select('status');
 
+        if (!account || account.status === 'Inactive') {
+            return next(new Error('Account not available'));
+        }
+
+        socket.userId = decoded.userId;
         next();
 
     } catch (error) {
@@ -257,7 +291,7 @@ io.on('connection', async (socket) => {
 });
 
 // Server port
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Handle port errors
 server.on('error', (error) => {
@@ -296,7 +330,6 @@ const startServer = async () => {
 };
 
 startServer();
-
 
 
 

@@ -19,6 +19,21 @@ const authMiddleware = async (req, res, next) => {
             process.env.JWT_SECRET
         );
 
+        // The account must still exist and must not be deactivated
+        const account = await User.findById(decoded.userId).select("status");
+
+        if (!account) {
+            return res.status(401).json({
+                message: "Account not found. Please login again."
+            });
+        }
+
+        if (account.status === "Inactive") {
+            return res.status(403).json({
+                message: "Your account has been deactivated. Please contact support."
+            });
+        }
+
         req.userId = decoded.userId;
         req.sessionId = decoded.sessionId || null;
 
@@ -70,7 +85,3 @@ const authMiddleware = async (req, res, next) => {
 };
 
 module.exports = authMiddleware;
-
-
-
-

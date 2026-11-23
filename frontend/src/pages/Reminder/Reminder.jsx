@@ -20,6 +20,7 @@ import {
   FaUser,
 } from "react-icons/fa";
 import "./Reminder.css";
+import API_BASE from "../../services/api";
 
 const getDate = (days = 0) => {
   const date = new Date();
@@ -32,11 +33,11 @@ const getDate = (days = 0) => {
   return `${year}-${month}-${day}`;
 };
 
-const API_URL = "https://obligation-known-reasons-mounts.trycloudflare.com/api/reminders";
+const API_URL = `${API_BASE}/reminders`;
 
 const authHeaders = () => ({
   "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("ametoken")}`,
+  Authorization: `Bearer ${localStorage.getItem("ameToken")}`,
 });
 
 const emptyForm = {

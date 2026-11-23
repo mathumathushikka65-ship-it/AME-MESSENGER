@@ -127,6 +127,25 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// BLOCK / UNBLOCK CONTACT (per-user preference)
+router.patch('/:id/block', async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: 'Invalid contact id' });
+        }
+        const isBlocked = Boolean(req.body.isBlocked);
+        const contact = await Contact.findOneAndUpdate(
+            { _id: req.params.id, owner: req.userId },
+            { $set: { isBlocked } },
+            { new: true }
+        ).populate('contactUser', USER_FIELDS);
+        if (!contact) return res.status(404).json({ message: 'Contact not found' });
+        res.status(200).json({ message: isBlocked ? 'Contact blocked' : 'Contact unblocked', contact });
+    } catch (error) {
+        res.status(500).json({ message: 'Unable to update contact block status', error: error.message });
+    }
+});
+
 // DELETE CONTACT
 router.delete('/:id', async (req, res) => {
     try {

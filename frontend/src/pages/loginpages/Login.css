@@ -1,19 +1,19 @@
 
 
 :root {
-  --login-electric: #2563ff;
-  --login-bright: #38bdf8;
-  --login-dark: #071a52;
-  --login-deep: #1237b8;
-  --login-light: #eff6ff;
-  --login-border: #dbe7ff;
-  --login-muted: #64748b;
+  --login-electric: var(--primary-color);
+  --login-bright: var(--accent-color);
+  --login-dark: var(--secondary-color);
+  --login-deep: var(--primary-color);
+  --login-light: var(--input-background);
+  --login-border: var(--border-color);
+  --login-muted: var(--text-light);
 }
 
 /* Main page */
 .login-error {
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--error-color);
+  background: var(--input-background);
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 14px;
@@ -26,10 +26,10 @@
   background:
     radial-gradient(
       circle at 85% 20%,
-      rgba(56, 189, 248, 0.12),
+      color-mix(in srgb, var(--accent-color) 12.0%, transparent),
       transparent 30%
     ),
-    linear-gradient(135deg, #f8fbff, #edf4ff);
+    linear-gradient(135deg, var(--input-background), var(--input-background));
   color: var(--login-dark);
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
 }
@@ -58,8 +58,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  background: rgba(255, 255, 255, 0.88);
-  border-bottom: 1px solid #e5edff;
+  background: color-mix(in srgb, var(--background-color) 88.0%, transparent);
+  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -89,9 +89,9 @@
     var(--login-electric),
     var(--login-dark)
   );
-  color: #ffffff;
+  color: var(--pure-white);
   font-size: 22px;
-  box-shadow: 0 6px 18px rgba(37, 99, 255, 0.25);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-color) 25.0%, transparent);
 }
 
 .login-header p {
@@ -118,10 +118,10 @@
   width: 100%;
   max-width: 450px;
   padding: 35px 36px;
-  background: #ffffff;
+  background: var(--background-color);
   border: 1px solid var(--login-border);
   border-radius: 22px;
-  box-shadow: 0 20px 60px rgba(7, 26, 82, 0.1);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--secondary-color) 10.0%, transparent);
 }
 
 /* Illustration */
@@ -139,8 +139,8 @@
   display: grid;
   place-items: center;
   border-radius: 23px;
-  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
-  border: 1px solid #bfdbfe;
+  background: linear-gradient(135deg, var(--border-color), var(--border-color));
+  border: 1px solid var(--border-color);
   transform: rotate(-5deg);
 }
 
@@ -159,7 +159,7 @@
   place-items: center;
   border-radius: 50%;
   background: var(--login-electric);
-  color: #ffffff;
+  color: var(--pure-white);
   font-size: 18px;
 }
 
@@ -199,9 +199,9 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  border: 1px solid #d7e2f5;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--background-color);
   color: var(--login-dark);
   font-family: inherit;
   font-size: 13px;
@@ -216,33 +216,33 @@
 
 .social-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 7px 18px rgba(7, 26, 82, 0.08);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--secondary-color) 8.0%, transparent);
 }
 
 .google-button:hover {
-  background: #f8fbff;
-  border-color: #93c5fd;
+  background: var(--input-background);
+  border-color: var(--text-light);
 }
 
 .facebook-button {
-  color: #ffffff;
-  background: #1877f2;
-  border-color: #1877f2;
+  color: var(--pure-white);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .facebook-button:hover {
-  color: #ffffff;
-  background: #0b57c5;
-  border-color: #0b57c5;
+  color: var(--pure-white);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .google-icon {
-  color: #4285f4;
+  color: var(--primary-color);
   font-size: 17px;
 }
 
 .facebook-icon {
-  color: #ffffff;
+  color: var(--pure-white);
   font-size: 18px;
 }
 
@@ -253,7 +253,7 @@
   align-items: center;
   gap: 12px;
   margin: 25px 0;
-  color: #94a3b8;
+  color: var(--accent-color);
   font-size: 9px;
   font-weight: 750;
   letter-spacing: 1.1px;
@@ -265,7 +265,7 @@
   content: "";
   height: 1px;
   flex: 1;
-  background: #e5edfa;
+  background: var(--border-color);
 }
 
 /* Form */
@@ -278,7 +278,7 @@
 }
 
 .form-group > label {
-  color: #243b65;
+  color: var(--text-light);
   font-size: 13px;
   font-weight: 700;
 }
@@ -288,9 +288,9 @@
   min-width: 0;
   height: 49px;
   padding: 0 14px;
-  border: 1px solid #d6e1f2;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--background-color);
   color: var(--login-dark);
   font-family: inherit;
   font-size: 14px;
@@ -299,12 +299,12 @@
 }
 
 .form-group input::placeholder {
-  color: #9aa9bf;
+  color: var(--text-light);
 }
 
 .form-group input:focus {
   border-color: var(--login-electric);
-  box-shadow: 0 0 0 3px rgba(37, 99, 255, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12.0%, transparent);
 }
 
 /* Password show/hide */
@@ -381,12 +381,12 @@
     var(--login-electric),
     var(--login-deep)
   );
-  color: #ffffff;
+  color: var(--pure-white);
   font-family: inherit;
   font-size: 14px;
   font-weight: 750;
   cursor: pointer;
-  box-shadow: 0 7px 18px rgba(37, 99, 255, 0.2);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--primary-color) 20.0%, transparent);
   transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
@@ -396,7 +396,7 @@
     var(--login-dark),
     var(--login-deep)
   );
-  box-shadow: 0 10px 23px rgba(7, 26, 82, 0.2);
+  box-shadow: 0 10px 23px color-mix(in srgb, var(--secondary-color) 20.0%, transparent);
   transform: translateY(-2px);
 }
 
@@ -415,7 +415,7 @@
 
 .login-bottom-text {
   margin: 25px 0 0;
-  color: #8292ad;
+  color: var(--text-light);
   font-size: 11px;
   line-height: 1.7;
   text-align: center;
@@ -426,7 +426,7 @@
 .login-page a:focus-visible,
 .login-page button:focus-visible,
 .login-page input:focus-visible {
-  outline: 3px solid rgba(56, 189, 248, 0.65);
+  outline: 3px solid color-mix(in srgb, var(--accent-color) 65.0%, transparent);
   outline-offset: 3px;
 }
 
@@ -501,3 +501,5 @@
 }
 
 
+
+.login-success { color: var(--success-color); background: var(--border-color); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 12px 0; }

@@ -1,4 +1,3 @@
-
 import { Navigate, Outlet } from "react-router-dom";
 
 export default function AdminRoute() {
@@ -6,20 +5,13 @@ export default function AdminRoute() {
   const adminToken = localStorage.getItem("ameAdminToken");
 
   try {
-    adminUser = JSON.parse(
-      localStorage.getItem("ameAdminUser")
-    );
-  } catch (error) {
+    adminUser = JSON.parse(localStorage.getItem("ameAdminUser") || "null");
+  } catch {
     adminUser = null;
   }
 
-  // Admin login illai endral Admin Login page-ku anuppum
-  if (
-    !adminToken ||
-    !adminUser ||
-    adminUser.role !== "admin"
-  ) {
-    return <Navigate to="/AdminLogin" replace />;
+  if (!adminToken || adminUser?.role !== "admin") {
+    return <Navigate to="/Login" replace />;
   }
 
   return <Outlet />;

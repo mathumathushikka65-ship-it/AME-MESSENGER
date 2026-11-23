@@ -6,7 +6,8 @@ const contactSchema = new mongoose.Schema({
   nickname: { type: String, trim: true, maxlength: 60, default: '' },
   // "collection" Mongoose-oda reserved peyar, so "folder"-a maathitten
   folder: { type: String, trim: true, maxlength: 60, default: 'All Contacts' },
-  isHidden: { type: Boolean, default: false }
+  isHidden: { type: Boolean, default: false },
+  isBlocked: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Oru user-ah ore contact-a rendu thadava add panna mudiyaadhu

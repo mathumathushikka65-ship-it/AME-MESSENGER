@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaGoogle, FaFacebookF, FaEyeSlash, FaEye } from "react-icons/fa";
 import API_URL from "../../services/api";
+import { firebaseAuth, isFirebaseConfigured } from "../../firebase";
+import { GoogleAuthProvider, FacebookAuthProvider, signInWithPopup } from "firebase/auth";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -43,11 +45,7 @@ export default function Login() {
       localStorage.setItem("ameUser", JSON.stringify(data.user));
 
       // Admin-na Admin page-ku, matha users-ku Home-ku
-      if (data.user.role === "admin") {
-        navigate("/Admin");
-      } else {
-        navigate("/Home");
-      }
+     navigate("/Home", { replace: true });
 
     } catch (error) {
       setErrorMessage(error.message || "Something went wrong");
@@ -56,13 +54,31 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    alert("Google login requires OAuth configuration.");
+  const handleSocialLogin = async (providerName) => {
+    setErrorMessage("");
+    if (!isFirebaseConfigured || !firebaseAuth) {
+      setErrorMessage("Social login is not configured yet. Add the Firebase VITE_FIREBASE_* settings and enable this provider in Firebase Authentication.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const provider = providerName === "google" ? new GoogleAuthProvider() : new FacebookAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(firebaseAuth, provider);
+      const idToken = await credential.user.getIdToken();
+      const response = await fetch(`${API_URL}/auth/oauth`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Social login failed.");
+      localStorage.setItem("ameToken", data.token);
+      localStorage.setItem("ameUser", JSON.stringify(data.user));
+       navigate("/Home", { replace: true });
+    } catch (error) {
+      setErrorMessage(error.code === "auth/popup-closed-by-user" ? "Sign-in window was closed." : error.message || "Social login failed.");
+    } finally { setLoading(false); }
   };
 
-  const handleFacebookLogin = () => {
-    alert("Facebook login requires OAuth configuration.");
-  };
+  const handleGoogleLogin = () => handleSocialLogin("google");
+  const handleFacebookLogin = () => handleSocialLogin("facebook");
 
   return (
     <div className="login-page">

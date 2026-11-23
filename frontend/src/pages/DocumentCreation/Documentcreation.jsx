@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import html2pdf from 'html2pdf.js';
 import './Documentcreation.css';
+import API_URL from '../../services/api';
 
 /*  API  */
-const BASE = 'https://obligation-known-reasons-mounts.trycloudflare.com/api/documents';
+const BASE = `${API_URL}/documents`;
 
 const request = async (url, options = {}) => {
   const res = await fetch(url, {

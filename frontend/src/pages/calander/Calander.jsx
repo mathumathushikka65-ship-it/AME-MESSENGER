@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FaChevronLeft,
   FaChevronRight,
@@ -19,7 +19,8 @@ import {
   FaCheckCircle,
   FaGraduationCap,
 } from "react-icons/fa";
-import "./Calendar.css";
+import "./Calander.css";
+import API_URL from "../../services/api";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const CATEGORIES = ["Class", "Assignment", "Exam", "Meeting", "Personal"];
@@ -32,57 +33,9 @@ const dateKey = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-const initialEvents = [
-  {
-    id: 1,
-    title: "Web Development",
-    date: dateKey(today),
-    start: "09:00",
-    end: "10:30",
-    category: "Class",
-    location: "Lab 02",
-    description: "React fundamentals",
-  },
-  {
-    id: 2,
-    title: "Database Assignment",
-    date: dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)),
-    start: "14:00",
-    end: "15:00",
-    category: "Assignment",
-    location: "Online",
-    description: "Submit database project",
-  },
-  {
-    id: 3,
-    title: "Mathematics",
-    date: dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)),
-    start: "10:00",
-    end: "11:30",
-    category: "Class",
-    location: "Room 105",
-    description: "Calculus lesson",
-  },
-  {
-    id: 4,
-    title: "Project Meeting",
-    date: dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3)),
-    start: "13:00",
-    end: "14:00",
-    category: "Meeting",
-    location: "Meeting Room",
-    description: "AME Messenger project discussion",
-  },
-];
+const initialEvents = [];
 
-const initialTimetable = [
-  { id: 1, day: "Monday", subject: "Web Development", lecturer: "Mr. John", room: "Lab 02", start: "09:00", end: "10:30" },
-  { id: 2, day: "Monday", subject: "Database", lecturer: "Ms. Sara", room: "Room 105", start: "11:00", end: "12:30" },
-  { id: 3, day: "Tuesday", subject: "Mathematics", lecturer: "Mr. David", room: "Room 201", start: "10:00", end: "11:30" },
-  { id: 4, day: "Wednesday", subject: "Programming", lecturer: "Ms. Anne", room: "Lab 01", start: "09:00", end: "11:00" },
-  { id: 5, day: "Thursday", subject: "Networking", lecturer: "Mr. Peter", room: "Room 204", start: "13:00", end: "14:30" },
-  { id: 6, day: "Friday", subject: "Project Work", lecturer: "Project Supervisor", room: "Lab 03", start: "09:00", end: "11:00" },
-];
+const initialTimetable = [];
 
 const emptyEvent = {
   title: "",
@@ -104,8 +57,47 @@ const emptyClass = {
 };
 
 export default function Calendar() {
-  const [events, setEvents] = useState(initialEvents);
-  const [timetable, setTimetable] = useState(initialTimetable);
+  const [events, setEvents] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ameCalendarEvents") || "null") || initialEvents; }
+    catch { return initialEvents; }
+  });
+  const [timetable, setTimetable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ameCalendarTimetable") || "null") || initialTimetable; }
+    catch { return initialTimetable; }
+  });
+  useEffect(() => { localStorage.setItem("ameCalendarEvents", JSON.stringify(events)); }, [events]);
+  useEffect(() => { localStorage.setItem("ameCalendarTimetable", JSON.stringify(timetable)); }, [timetable]);
+  useEffect(() => {
+    const token = localStorage.getItem("ameToken");
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+    const loadAcademicDates = async () => {
+      try {
+        const [assignmentResponse, reminderResponse] = await Promise.all([
+          fetch(`${API_URL}/assignments`, { headers }),
+          fetch(`${API_URL}/reminders`, { headers })
+        ]);
+        const additions = [];
+        if (assignmentResponse.ok) {
+          const payload = await assignmentResponse.json();
+          (payload.assignments || []).forEach((item) => {
+            if (!item.dueDate) return;
+            additions.push({ id: `assignment-${item._id || item.id}`, title: `${item.title || "Assignment"} deadline`, date: String(item.dueDate).slice(0, 10), start: "23:59", end: "23:59", category: "Assignment", location: "AME Assignments", description: item.subject || item.description || "Assignment due date", source: "assignment" });
+          });
+        }
+        if (reminderResponse.ok) {
+          const reminders = await reminderResponse.json();
+          (Array.isArray(reminders) ? reminders : []).forEach((item) => additions.push({ id: `reminder-${item.id || item._id}`, title: item.title, date: item.date, start: item.time || "09:00", end: item.time || "09:00", category: ["Assignment", "Exam", "Meeting", "Personal"].includes(item.category) ? item.category : "Personal", location: "Reminder", description: item.description || "", source: "reminder" }));
+        }
+        if (additions.length) setEvents((current) => {
+          const manual = current.filter((item) => !item.source);
+          const existingIds = new Set(current.map((item) => String(item.id)));
+          return [...manual, ...additions.filter((item) => !existingIds.has(String(item.id)))];
+        });
+      } catch (error) { console.error("Unable to sync calendar items:", error); }
+    };
+    loadAcademicDates();
+  }, []);
   const [selectedDate, setSelectedDate] = useState(today);
   const [view, setView] = useState("month");
   const [activeTab, setActiveTab] = useState("calendar");
@@ -289,7 +281,7 @@ export default function Calendar() {
         <nav className="cal-side-nav">
           <a href="/Home"><FaGraduationCap /> Dashboard</a>
           <a href="/Assignment"><FaBook /> Assignments</a>
-          <a href="/Reminders"><FaClock /> Reminders</a>
+          <a href="/Reminder"><FaClock /> Reminders</a>
           <a className="active" href="/Calendar"><FaCalendarAlt /> Calendar</a>
         </nav>
 

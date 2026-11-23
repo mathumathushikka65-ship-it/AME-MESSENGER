@@ -1,44 +1,44 @@
 .doc-creator {
-  --border: #d9dde6;
-  --accent: #4f6bed;
+  --border: var(--border-color);
+  --accent: var(--primary-color);
   display: flex;
   height: 100vh;
-  background: #eef0f5;
-  color: #1f2430;
+  background: var(--border-color);
+  color: var(--text-color);
   font-family: system-ui, "Segoe UI", sans-serif;
   text-align: left;
 }
 .doc-creator * { box-sizing: border-box; }
 
 /* sidebar */
-.doc-creator .dc-sidebar { width: 260px; background: #fff; border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; }
-.doc-creator .dc-new-btn { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; font-size: 1rem; }
+.doc-creator .dc-sidebar { width: 260px; background: var(--background-color); border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; }
+.doc-creator .dc-new-btn { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: var(--accent); color: var(--pure-white); cursor: pointer; font-size: 1rem; }
 .doc-creator .dc-sidebar ul { list-style: none; padding: 0; margin: 12px 0 0; }
 .doc-creator .dc-sidebar li { display: flex; align-items: center; border-radius: 8px; }
-.doc-creator .dc-sidebar li.active { background: #e8ecff; }
+.doc-creator .dc-sidebar li.active { background: var(--border-color); }
 .doc-creator .dc-doc-open { flex: 1; text-align: left; background: none; border: 0; padding: 8px; cursor: pointer; display: flex; flex-direction: column; min-width: 0; color: inherit; }
 .doc-creator .dc-doc-open strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.doc-creator .dc-doc-open small { color: #6b7280; }
-.doc-creator .dc-doc-delete { background: none; border: 0; cursor: pointer; color: #9ca3af; padding: 8px; }
-.doc-creator .dc-doc-delete:hover { color: #dc2626; }
+.doc-creator .dc-doc-open small { color: var(--text-light); }
+.doc-creator .dc-doc-delete { background: none; border: 0; cursor: pointer; color: var(--border-color); padding: 8px; }
+.doc-creator .dc-doc-delete:hover { color: var(--error-color); }
 
 /* workspace */
 .doc-creator .dc-workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.doc-creator .dc-empty { margin: auto; color: #6b7280; }
+.doc-creator .dc-empty { margin: auto; color: var(--text-light); }
 .doc-creator .dc-editor { display: flex; flex-direction: column; height: 100%; }
 
 /* top bar */
-.doc-creator .dc-topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--border); }
-.doc-creator .dc-title-input { flex: 1; font-size: 1.15rem; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; background: #fff; color: inherit; }
+.doc-creator .dc-topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--background-color); border-bottom: 1px solid var(--border); }
+.doc-creator .dc-title-input { flex: 1; font-size: 1.15rem; border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; background: var(--background-color); color: inherit; }
 .doc-creator .dc-title-input:hover,
 .doc-creator .dc-title-input:focus { border-color: var(--border); outline: none; }
-.doc-creator .dc-status { color: #6b7280; font-size: .85rem; }
-.doc-creator .dc-pdf-btn { padding: 8px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+.doc-creator .dc-status { color: var(--text-light); font-size: .85rem; }
+.doc-creator .dc-pdf-btn { padding: 8px 14px; border: 0; border-radius: 8px; background: var(--accent); color: var(--pure-white); cursor: pointer; }
 
 /* toolbar */
-.doc-creator .dc-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; background: #fff; border-bottom: 1px solid var(--border); }
-.doc-creator .dc-toolbar button { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: #1f2430; cursor: pointer; }
-.doc-creator .dc-toolbar button:hover { background: #f1f3fa; }
+.doc-creator .dc-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; background: var(--background-color); border-bottom: 1px solid var(--border); }
+.doc-creator .dc-toolbar button { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--background-color); color: var(--text-color); cursor: pointer; }
+.doc-creator .dc-toolbar button:hover { background: var(--input-background); }
 
 /* the "paper" */
 .doc-creator .dc-canvas { flex: 1; overflow-y: auto; padding: 24px 12px; }
@@ -48,9 +48,9 @@
   min-height: 1123px;
   margin: 0 auto;
   padding: 60px 70px;
-  background: #fff;
-  color: #111;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, .12);
+  background: var(--background-color);
+  color: var(--text-color);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--secondary-color) 12.0%, transparent);
   outline: none;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -62,82 +62,187 @@
 ========================================= */
 
 [data-theme="dark"] .doc-creator {
-  background: #0f172a;
-  color: #f1f5f9;
-  --border: #334155;
-  --accent: #60a5fa;
+  background: var(--secondary-color);
+  color: var(--input-background);
+  --border: var(--text-light);
+  --accent: var(--accent-color);
 }
 
 /* Sidebar */
 [data-theme="dark"] .doc-creator .dc-sidebar {
-  background: #172033;
-  border-color: #334155;
+  background: var(--secondary-color);
+  border-color: var(--text-light);
 }
 
 [data-theme="dark"] .doc-creator .dc-sidebar li.active {
-  background: #263b55;
+  background: var(--text-light);
 }
 
 [data-theme="dark"] .doc-creator .dc-doc-open {
-  color: #f1f5f9;
+  color: var(--input-background);
 }
 
 [data-theme="dark"] .doc-creator .dc-doc-open small {
-  color: #94a3b8;
+  color: var(--accent-color);
 }
 
 [data-theme="dark"] .doc-creator .dc-doc-delete {
-  color: #94a3b8;
+  color: var(--accent-color);
 }
 
 /* Workspace */
 [data-theme="dark"] .doc-creator .dc-empty {
-  color: #94a3b8;
+  color: var(--accent-color);
 }
 
 /* Top bar */
 [data-theme="dark"] .doc-creator .dc-topbar {
-  background: #172033;
-  border-color: #334155;
+  background: var(--secondary-color);
+  border-color: var(--text-light);
 }
 
 [data-theme="dark"] .doc-creator .dc-title-input {
-  background: #172033;
-  color: #f1f5f9;
+  background: var(--secondary-color);
+  color: var(--input-background);
 }
 
 [data-theme="dark"] .doc-creator .dc-title-input::placeholder {
-  color: #94a3b8;
+  color: var(--accent-color);
 }
 
 [data-theme="dark"] .doc-creator .dc-status {
-  color: #94a3b8;
+  color: var(--accent-color);
 }
 
 /* Toolbar */
 [data-theme="dark"] .doc-creator .dc-toolbar {
-  background: #172033;
-  border-color: #334155;
+  background: var(--secondary-color);
+  border-color: var(--text-light);
 }
 
 [data-theme="dark"] .doc-creator .dc-toolbar button {
-  background: #1e293b;
-  border-color: #475569;
-  color: #e2e8f0;
+  background: var(--secondary-color);
+  border-color: var(--text-light);
+  color: var(--border-color);
 }
 
 [data-theme="dark"] .doc-creator .dc-toolbar button:hover {
-  background: #334155;
+  background: var(--text-light);
 }
 
 /* Editor background */
 [data-theme="dark"] .doc-creator .dc-canvas {
-  background: #0f172a;
+  background: var(--secondary-color);
 }
 
 /* Document paper */
 [data-theme="dark"] .doc-creator .dc-page {
-  background: #1e293b;
-  color: #f1f5f9;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  background: var(--secondary-color);
+  color: var(--input-background);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--secondary-color) 30.0%, transparent);
+}
+
+
+
+
+/* =========================================
+   DOCUMENT CREATOR - DARK THEME (new)
+   Paste this at the END of Documentcreation.css.
+   It overrides the old dark block above it.
+========================================= */
+
+[data-theme="dark"] .doc-creator {
+  --border: var(--border-color);
+  --accent: var(--ame-accent, var(--primary-color));
+  background: var(--page-background);
+  color: var(--text-color);
+}
+
+/* Sidebar */
+[data-theme="dark"] .doc-creator .dc-sidebar {
+  background: var(--sidebar-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-sidebar li.active {
+  background: var(--input-background);
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-open {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-open small {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-delete {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .doc-creator .dc-doc-delete:hover {
+  color: var(--error-color);
+}
+
+/* Workspace */
+[data-theme="dark"] .doc-creator .dc-empty {
+  color: var(--text-light);
+}
+
+/* Top bar */
+[data-theme="dark"] .doc-creator .dc-topbar {
+  background: var(--sidebar-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-title-input {
+  background: transparent;
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-title-input:hover,
+[data-theme="dark"] .doc-creator .dc-title-input:focus {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-title-input::placeholder {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .doc-creator .dc-status {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .doc-creator .dc-new-btn,
+[data-theme="dark"] .doc-creator .dc-pdf-btn {
+  color: var(--pure-white);
+}
+
+/* Toolbar */
+[data-theme="dark"] .doc-creator .dc-toolbar {
+  background: var(--sidebar-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-toolbar button {
+  background: var(--input-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .doc-creator .dc-toolbar button:hover {
+  background: var(--border-color);
+}
+
+/* Area around the paper */
+[data-theme="dark"] .doc-creator .dc-canvas {
+  background: var(--page-background);
+}
+
+/* The paper itself: lighter than the area around it, with light text */
+[data-theme="dark"] .doc-creator .dc-page {
+  background: var(--card-background);
+  color: var(--text-color);
+  caret-color: var(--text-color);
+  box-shadow: 0 2px 16px color-mix(in srgb, black 40%, transparent);
 }

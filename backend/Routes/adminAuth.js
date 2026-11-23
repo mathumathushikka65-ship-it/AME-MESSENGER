@@ -1,4 +1,3 @@
-
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -17,9 +16,9 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Admin account mattum search pannum
+        // Search admin accounts only
         const admin = await User.findOne({
-            email: email.trim().toLowerCase(),
+            email: String(email).trim().toLowerCase(),
             role: 'admin'
         });
 
@@ -29,14 +28,7 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Inactive admin login panna mudiyathu
-        if (admin.status !== 'Active') {
-            return res.status(403).json({
-                message: 'This admin account is inactive'
-            });
-        }
-
-        // Password verify
+        // Verify the password first, so the account status is never revealed to someone who does not know it
         const isMatch = await bcrypt.compare(
             password,
             admin.password
@@ -48,11 +40,17 @@ router.post('/login', async (req, res) => {
             });
         }
 
+        // Inactive admin cannot login
+        if (admin.status !== 'Active') {
+            return res.status(403).json({
+                message: 'This admin account is inactive'
+            });
+        }
+
         if (!process.env.JWT_SECRET) {
             throw new Error('JWT_SECRET is missing in .env');
         }
 
-        // Admin JWT token
         const token = jwt.sign(
             { userId: admin._id },
             process.env.JWT_SECRET,
@@ -71,11 +69,10 @@ router.post('/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Admin login error:', error);
+        console.error('Admin login error:', error.message);
 
         return res.status(500).json({
-            message: 'Admin login failed',
-            error: error.message
+            message: 'Admin login failed'
         });
     }
 });

@@ -1,1 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+:root {
+  --primary-color: #2f5bff;
+  --secondary-color: #0f172a;
+  --accent-color: #38bdf8;
+  --background-color: #ffffff;
+  --white-color: #ffffff;
+  --pure-white: #ffffff;
+  --text-color: #0f172a;
+  --text-light: #475569;
+  --border-color: #e2e8f0;
+  --card-background: #ffffff;
+  --input-background: #f8fafc;
+  --sidebar-background: #ffffff;
+  --error-color: #EF4444;
+  --success-color: #22C55E;
+  --main-font: 'Inter', sans-serif;
+}
+
+[data-theme="dark"] {
+  --primary-color: #60a5fa;
+  --secondary-color: #0f172a;
+  --accent-color: #38bdf8;
+  --background-color: #0f172a;
+  --white-color: #1e293b;
+  --pure-white: #ffffff;
+  --text-color: #f1f5f9;
+  --text-light: #cbd5e1;
+  --border-color: #334155;
+  --card-background: #1e293b;
+  --input-background: #334155;
+  --sidebar-background: #172033;
+  --error-color: #f87171;
+  --success-color: #4ade80;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: var(--main-font); background: var(--background-color); color: var(--text-color); }
+button, input, textarea, select { font-family: inherit; }
+img { max-width: 100%; }
+
+:root[data-text-size="large"] { font-size: 17px; }
+:root[data-text-size="larger"] { font-size: 18px; }
+.ame-reduce-motion *, .ame-reduce-motion *::before, .ame-reduce-motion *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }

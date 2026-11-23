@@ -139,6 +139,9 @@ profilePhotoPublicId: {
         }
     },
 
+    passwordResetToken: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null },
+
     // APPEARANCE THEME
     theme: {
         type: String,
@@ -151,4 +154,3 @@ profilePhotoPublicId: {
 });
 
 module.exports = mongoose.model('User', userSchema);
-

@@ -1,14 +1,10 @@
-
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
-
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Cropper from "react-easy-crop";
+import { useNavigate } from "react-router-dom";
+import API_BASE from "../../services/api";
 import "./Setting.css";
 import { useTheme } from "../../context/ThemeContext";
+import { applyAccent, getSavedAccent, ACCENT_COLORS } from "../../utils/accent";
 
 import {
   FaUserCircle,
@@ -31,7 +27,11 @@ import {
   FaSignOutAlt,
   FaCheck,
   FaEnvelope,
+  FaArrowLeft,
+  FaTrash,
 } from "react-icons/fa";
+
+const API_URL = API_BASE.replace(/\/api\/?$/, "");
 
 const defaultSettings = {
   lastSeen: true,
@@ -54,66 +54,39 @@ const defaultSettings = {
 const createImage = (url) =>
   new Promise((resolve, reject) => {
     const image = new Image();
-
     image.onload = () => resolve(image);
     image.onerror = reject;
     image.src = url;
   });
 
 // CROP AND ROTATE IMAGE
-const getCroppedPhotoBlob = async (
-  imageSrc,
-  pixelCrop,
-  rotation = 0
-) => {
+const getCroppedPhotoBlob = async (imageSrc, pixelCrop, rotation = 0) => {
   const image = await createImage(imageSrc);
 
   const radians = (rotation * Math.PI) / 180;
-
   const sin = Math.abs(Math.sin(radians));
   const cos = Math.abs(Math.cos(radians));
 
-  const rotatedWidth =
-    image.width * cos + image.height * sin;
-
-  const rotatedHeight =
-    image.width * sin + image.height * cos;
+  const rotatedWidth = image.width * cos + image.height * sin;
+  const rotatedHeight = image.width * sin + image.height * cos;
 
   const rotatedCanvas = document.createElement("canvas");
-
   rotatedCanvas.width = Math.round(rotatedWidth);
   rotatedCanvas.height = Math.round(rotatedHeight);
 
   const rotatedContext = rotatedCanvas.getContext("2d");
+  if (!rotatedContext) throw new Error("Unable to process image.");
 
-  if (!rotatedContext) {
-    throw new Error("Unable to process image.");
-  }
-
-  rotatedContext.translate(
-    rotatedCanvas.width / 2,
-    rotatedCanvas.height / 2
-  );
-
+  rotatedContext.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2);
   rotatedContext.rotate(radians);
+  rotatedContext.drawImage(image, -image.width / 2, -image.height / 2);
 
-  rotatedContext.drawImage(
-    image,
-    -image.width / 2,
-    -image.height / 2
-  );
-
-  // FINAL CROPPED IMAGE
   const outputCanvas = document.createElement("canvas");
-
   outputCanvas.width = 512;
   outputCanvas.height = 512;
 
   const outputContext = outputCanvas.getContext("2d");
-
-  if (!outputContext) {
-    throw new Error("Unable to crop image.");
-  }
+  if (!outputContext) throw new Error("Unable to crop image.");
 
   outputContext.drawImage(
     rotatedCanvas,
@@ -129,13 +102,7 @@ const getCroppedPhotoBlob = async (
 
   return new Promise((resolve, reject) => {
     outputCanvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Image cropping failed."));
-        }
-      },
+      (blob) => (blob ? resolve(blob) : reject(new Error("Image cropping failed."))),
       "image/jpeg",
       0.92
     );
@@ -143,9 +110,8 @@ const getCroppedPhotoBlob = async (
 };
 
 export default function SettingsPage() {
-  const currentUser = JSON.parse(
-    localStorage.getItem("ameUser") || "null"
-  );
+  const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("ameUser") || "null");
 
   const [activeTab, setActiveTab] = useState("Profile");
 
@@ -160,48 +126,44 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
 
   // PROFILE PHOTO STATES
-  const [profilePhoto, setProfilePhoto] = useState(
-    currentUser?.profilePhoto || ""
-  );
-
-  const [previewPhoto, setPreviewPhoto] = useState(
-    currentUser?.profilePhoto || ""
-  );
-
+  const [profilePhoto, setProfilePhoto] = useState(currentUser?.profilePhoto || "");
+  const [previewPhoto, setPreviewPhoto] = useState(currentUser?.profilePhoto || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-
   const fileInputRef = useRef(null);
 
-  // PROFILE PHOTO CROP EDITOR STATES
+  // CROP EDITOR STATES
   const [cropModalOpen, setCropModalOpen] = useState(false);
-
   const [cropImage, setCropImage] = useState("");
-
-  const [crop, setCrop] = useState({
-    x: 0,
-    y: 0,
-  });
-
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-
   const [rotation, setRotation] = useState(0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
-  const [croppedAreaPixels, setCroppedAreaPixels] =
-    useState(null);
-
-  // SAVE CROP AREA
-  const onCropComplete = useCallback(
-    (croppedArea, croppedAreaPixels) => {
-      setCroppedAreaPixels(croppedAreaPixels);
-    },
-    []
-  );
+  const onCropComplete = useCallback((croppedArea, pixels) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
 
   const [settings, setSettings] = useState(defaultSettings);
   const { theme, setTheme } = useTheme();
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const firstSave = useRef(true);
   const [search, setSearch] = useState("");
+
+  // PASSWORD + DELETE ACCOUNT STATES
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+  const [accent, setAccent] = useState(getSavedAccent);
+
+  useEffect(() => {
+    document.documentElement.dataset.textSize = localStorage.getItem("ameTextSize") || "normal";
+    document.documentElement.classList.toggle(
+      "ame-reduce-motion",
+      localStorage.getItem("ameReduceMotion") === "true"
+    );
+  }, []);
 
   // LOAD SAVED SETTINGS FROM BACKEND
   useEffect(() => {
@@ -214,29 +176,18 @@ export default function SettingsPage() {
       }
 
       try {
-        const response = await fetch(
-          "https://obligation-known-reasons-mounts.trycloudflare.com/api/settings",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await fetch(`${API_URL}/api/settings`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            data.message || "Unable to fetch settings"
-          );
+          throw new Error(data.message || "Unable to fetch settings");
         }
 
-        setSettings({
-          ...defaultSettings,
-          ...(data.settings || {}),
-        });
-
+        setSettings({ ...defaultSettings, ...(data.settings || {}) });
         setTheme(data.theme || "Light");
         setSettingsLoaded(true);
       } catch (error) {
@@ -261,34 +212,24 @@ export default function SettingsPage() {
       const token = localStorage.getItem("ameToken");
 
       if (!token) {
-        console.error(
-          "Settings could not be saved: login token missing."
-        );
+        console.error("Settings could not be saved: login token missing.");
         return;
       }
 
       try {
-        const response = await fetch(
-          "https://obligation-known-reasons-mounts.trycloudflare.com/api/settings",
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              settings,
-              theme,
-            }),
-          }
-        );
+        const response = await fetch(`${API_URL}/api/settings`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ settings, theme }),
+        });
 
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            data.message || "Settings update failed"
-          );
+          throw new Error(data.message || "Settings update failed");
         }
 
         console.log("Settings saved successfully");
@@ -315,17 +256,11 @@ export default function SettingsPage() {
   ];
 
   const toggleSetting = (key) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const updateProfile = (key, value) => {
-    setProfile((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setProfile((prev) => ({ ...prev, [key]: value }));
   };
 
   // OPEN IMAGE SELECTOR
@@ -351,27 +286,17 @@ export default function SettingsPage() {
       return;
     }
 
-    // RELEASE PREVIOUS TEMPORARY IMAGE URL
-    if (cropImage) {
-      URL.revokeObjectURL(cropImage);
-    }
+    if (cropImage) URL.revokeObjectURL(cropImage);
 
     const imageUrl = URL.createObjectURL(file);
 
     setCropImage(imageUrl);
-
-    setCrop({
-      x: 0,
-      y: 0,
-    });
-
+    setCrop({ x: 0, y: 0 });
     setZoom(1);
     setRotation(0);
     setCroppedAreaPixels(null);
-
     setCropModalOpen(true);
 
-    // Allows selecting the same image again
     e.target.value = "";
   };
 
@@ -379,19 +304,12 @@ export default function SettingsPage() {
   const handleCancelCrop = () => {
     if (uploadingPhoto) return;
 
-    if (cropImage) {
-      URL.revokeObjectURL(cropImage);
-    }
+    if (cropImage) URL.revokeObjectURL(cropImage);
 
     setCropImage("");
     setCropModalOpen(false);
     setCroppedAreaPixels(null);
-
-    setCrop({
-      x: 0,
-      y: 0,
-    });
-
+    setCrop({ x: 0, y: 0 });
     setZoom(1);
     setRotation(0);
   };
@@ -413,85 +331,54 @@ export default function SettingsPage() {
     try {
       setUploadingPhoto(true);
 
-      // STEP 1: CREATE CROPPED IMAGE
-      const croppedBlob = await getCroppedPhotoBlob(
-        cropImage,
-        croppedAreaPixels,
-        rotation
-      );
+      const croppedBlob = await getCroppedPhotoBlob(cropImage, croppedAreaPixels, rotation);
 
-      if (!croppedBlob) {
-        throw new Error("Image cropping failed.");
-      }
+      if (!croppedBlob) throw new Error("Image cropping failed.");
 
-      // STEP 2: UPLOAD CROPPED IMAGE TO CLOUDINARY
       const formData = new FormData();
+      formData.append("file", croppedBlob, "profile-photo.jpg");
 
-      formData.append(
-        "file",
-        croppedBlob,
-        "profile-photo.jpg"
-      );
-
-      const uploadResponse = await fetch(
-        "https://obligation-known-reasons-mounts.trycloudflare.com/api/upload",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const uploadResponse = await fetch(`${API_URL}/api/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
       const uploadData = await uploadResponse.json();
 
       if (!uploadResponse.ok) {
-        throw new Error(
-          uploadData.message || "Image upload failed"
-        );
+        throw new Error(uploadData.message || "Image upload failed");
       }
 
       const uploadedImageUrl = uploadData.data?.fileUrl;
       const publicId = uploadData.data?.publicId;
 
-      if (!uploadedImageUrl) {
-        throw new Error("Image URL was not returned.");
-      }
+      if (!uploadedImageUrl) throw new Error("Image URL was not returned.");
 
-      // STEP 3: SAVE PROFILE PHOTO IN MONGODB
-      const profileResponse = await fetch(
-        "https://obligation-known-reasons-mounts.trycloudflare.com/api/auth/profile",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            username: profile.name,
-            email: profile.email,
-            about: profile.about,
-            phone: profile.phone,
-            profilePhoto: uploadedImageUrl,
-            profilePhotoPublicId: publicId,
-          }),
-        }
-      );
+      const profileResponse = await fetch(`${API_URL}/api/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username: profile.name,
+          email: profile.email,
+          about: profile.about,
+          phone: profile.phone,
+          profilePhoto: uploadedImageUrl,
+          profilePhotoPublicId: publicId,
+        }),
+      });
 
       const profileData = await profileResponse.json();
 
       if (!profileResponse.ok) {
-        throw new Error(
-          profileData.message || "Profile photo save failed"
-        );
+        throw new Error(profileData.message || "Profile photo save failed");
       }
 
-      // STEP 4: UPDATE LOCAL STORAGE
       const savedUser =
-        profileData.user ||
-        JSON.parse(localStorage.getItem("ameUser") || "null") ||
-        {};
+        profileData.user || JSON.parse(localStorage.getItem("ameUser") || "null") || {};
 
       const updatedUser = {
         ...savedUser,
@@ -499,41 +386,25 @@ export default function SettingsPage() {
         profilePhotoPublicId: publicId,
       };
 
-      localStorage.setItem(
-        "ameUser",
-        JSON.stringify(updatedUser)
-      );
-
+      localStorage.setItem("ameUser", JSON.stringify(updatedUser));
       window.dispatchEvent(new Event("ameUserUpdated"));
 
-      // STEP 5: UPDATE PROFILE PHOTO DISPLAY
       setProfilePhoto(uploadedImageUrl);
       setPreviewPhoto(uploadedImageUrl);
 
-      // CLOSE CROP EDITOR
       URL.revokeObjectURL(cropImage);
 
       setCropImage("");
       setCropModalOpen(false);
       setCroppedAreaPixels(null);
-
-      setCrop({
-        x: 0,
-        y: 0,
-      });
-
+      setCrop({ x: 0, y: 0 });
       setZoom(1);
       setRotation(0);
 
       alert("Profile picture updated successfully!");
-
     } catch (error) {
       console.error("Cropped Profile Photo Error:", error);
-
-      alert(
-        error.message || "Unable to upload profile picture."
-      );
-
+      alert(error.message || "Unable to upload profile picture.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -556,30 +427,25 @@ export default function SettingsPage() {
     try {
       setSavingProfile(true);
 
-      const response = await fetch(
-        "https://obligation-known-reasons-mounts.trycloudflare.com/api/auth/profile",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            username: profile.name,
-            email: profile.email,
-            about: profile.about,
-            phone: profile.phone,
-            profilePhoto,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username: profile.name,
+          email: profile.email,
+          about: profile.about,
+          phone: profile.phone,
+          profilePhoto,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Profile update failed"
-        );
+        throw new Error(data.message || "Profile update failed");
       }
 
       const updatedUser = {
@@ -587,11 +453,7 @@ export default function SettingsPage() {
         profilePhoto: data.user.profilePhoto || profilePhoto,
       };
 
-      localStorage.setItem(
-        "ameUser",
-        JSON.stringify(updatedUser)
-      );
-
+      localStorage.setItem("ameUser", JSON.stringify(updatedUser));
       window.dispatchEvent(new Event("ameUserUpdated"));
 
       setProfile({
@@ -614,10 +476,142 @@ export default function SettingsPage() {
   };
 
   // LOGOUT
+  const clearSession = () => {
+    ["ameToken", "ameUser", "ameAdminToken", "ameAdminUser"].forEach((key) =>
+      localStorage.removeItem(key)
+    );
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem("ameToken");
-    localStorage.removeItem("ameUser");
-    window.location.href = "/Login";
+    clearSession();
+    navigate("/Login", { replace: true });
+  };
+
+  // CHANGE PASSWORD
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (pwForm.next.length < 8) {
+      alert("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (pwForm.next !== pwForm.confirm) {
+      alert("New password and confirm password do not match.");
+      return;
+    }
+
+    const token = localStorage.getItem("ameToken");
+
+    try {
+      setPwSaving(true);
+
+      const response = await fetch(`${API_URL}/api/settings/password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: pwForm.current,
+          newPassword: pwForm.next,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to change password");
+      }
+
+      setPwForm({ current: "", next: "", confirm: "" });
+      alert("Password changed successfully!");
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  // DELETE ACCOUNT
+  const handleDeleteAccount = async () => {
+    const sure = window.confirm(
+      "Your account will be permanently deleted. This cannot be undone. Continue?"
+    );
+
+    if (!sure) return;
+
+    const token = localStorage.getItem("ameToken");
+
+    try {
+      setDeleting(true);
+
+      const response = await fetch(`${API_URL}/api/settings/account`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete account");
+      }
+
+      clearSession();
+      navigate("/", { replace: true });
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // REMOVE PROFILE PHOTO
+  const handleRemovePhoto = async () => {
+    if (!window.confirm("Remove your profile photo?")) return;
+
+    const token = localStorage.getItem("ameToken");
+
+    try {
+      setRemovingPhoto(true);
+
+      const response = await fetch(`${API_URL}/api/settings/profile-photo`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to remove photo");
+      }
+
+      const savedUser = JSON.parse(localStorage.getItem("ameUser") || "null") || {};
+
+      localStorage.setItem(
+        "ameUser",
+        JSON.stringify({ ...savedUser, profilePhoto: "", profilePhotoPublicId: "" })
+      );
+
+      window.dispatchEvent(new Event("ameUserUpdated"));
+
+      setProfilePhoto("");
+      setPreviewPhoto("");
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+
+  // ACCENT COLOR
+  const handleAccent = (color) => {
+    setAccent(color);
+    applyAccent(color);
   };
 
   // SETTINGS TOGGLE
@@ -630,9 +624,7 @@ export default function SettingsPage() {
 
       <button
         type="button"
-        className={`setting-switch ${
-          settings[settingKey] ? "active" : ""
-        }`}
+        className={`setting-switch ${settings[settingKey] ? "active" : ""}`}
         onClick={() => toggleSetting(settingKey)}
         aria-label={label}
         aria-pressed={settings[settingKey]}
@@ -656,11 +648,7 @@ export default function SettingsPage() {
             <div className="profile-card">
               <div className="profile-photo">
                 {previewPhoto ? (
-                  <img
-                    src={previewPhoto}
-                    alt="Profile"
-                    className="profile-photo-image"
-                  />
+                  <img src={previewPhoto} alt="Profile" className="profile-photo-image" />
                 ) : (
                   <FaUserCircle />
                 )}
@@ -684,17 +672,24 @@ export default function SettingsPage() {
               </div>
 
               {uploadingPhoto && (
-                <p className="photo-upload-status">
-                  Uploading profile picture...
-                </p>
+                <p className="photo-upload-status">Uploading profile picture...</p>
+              )}
+
+              {previewPhoto && (
+                <button
+                  type="button"
+                  className="remove-photo-btn"
+                  onClick={handleRemovePhoto}
+                  disabled={removingPhoto || uploadingPhoto}
+                >
+                  <FaTrash /> {removingPhoto ? "Removing..." : "Remove photo"}
+                </button>
               )}
 
               <h3>{profile.name}</h3>
               <p>{profile.email}</p>
 
-              <span className="profile-role">
-                {profile.role}
-              </span>
+              <span className="profile-role">{profile.role}</span>
             </div>
 
             <div className="settings-card">
@@ -704,9 +699,7 @@ export default function SettingsPage() {
                 <label>Full Name</label>
                 <input
                   value={profile.name}
-                  onChange={(e) =>
-                    updateProfile("name", e.target.value)
-                  }
+                  onChange={(e) => updateProfile("name", e.target.value)}
                 />
               </div>
 
@@ -715,9 +708,7 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(e) =>
-                    updateProfile("email", e.target.value)
-                  }
+                  onChange={(e) => updateProfile("email", e.target.value)}
                 />
               </div>
 
@@ -726,9 +717,7 @@ export default function SettingsPage() {
                 <input
                   type="tel"
                   value={profile.phone}
-                  onChange={(e) =>
-                    updateProfile("phone", e.target.value)
-                  }
+                  onChange={(e) => updateProfile("phone", e.target.value)}
                 />
               </div>
 
@@ -736,9 +725,7 @@ export default function SettingsPage() {
                 <label>About</label>
                 <textarea
                   value={profile.about}
-                  onChange={(e) =>
-                    updateProfile("about", e.target.value)
-                  }
+                  onChange={(e) => updateProfile("about", e.target.value)}
                 />
               </div>
 
@@ -764,29 +751,79 @@ export default function SettingsPage() {
             </div>
 
             <div className="settings-card">
-              <h3>Account Security</h3>
+              <h3>Two-Step Verification</h3>
 
               <SettingToggle
                 label="Two-Step Verification"
                 description="Add an extra layer of security to your account."
                 settingKey="twoFactor"
               />
+            </div>
 
-              <div className="setting-option">
-                <div className="setting-option-info">
-                  <h4>Change Password</h4>
-                  <p>Update your account password.</p>
-                </div>
-                <FaChevronRight />
+            <form className="settings-card" onSubmit={handleChangePassword}>
+              <h3>Change Password</h3>
+
+              <div className="profile-input-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={pwForm.current}
+                  onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
+                  required
+                />
               </div>
 
-              <div className="setting-option">
-                <div className="setting-option-info">
-                  <h4>Active Sessions</h4>
-                  <p>Manage devices logged into your account.</p>
-                </div>
-                <FaChevronRight />
+              <div className="profile-input-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={pwForm.next}
+                  onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })}
+                  required
+                />
               </div>
+
+              <div className="profile-input-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+                  required
+                />
+              </div>
+
+              <button type="submit" className="save-settings-btn" disabled={pwSaving}>
+                <FaCheck />
+                {pwSaving ? "Updating..." : "Update Password"}
+              </button>
+            </form>
+
+            <div className="settings-card danger-card">
+              <h3>Delete Account</h3>
+              <p>This will permanently delete your account. It cannot be undone.</p>
+
+              <div className="profile-input-group">
+                <label>Enter your password to confirm</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="danger-btn"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete my account"}
+              </button>
             </div>
           </>
         );
@@ -851,14 +888,6 @@ export default function SettingsPage() {
                 description="Automatically download shared media."
                 settingKey="mediaAutoDownload"
               />
-
-              <div className="setting-option">
-                <div className="setting-option-info">
-                  <h4>Chat Wallpaper</h4>
-                  <p>Customize your conversation background.</p>
-                </div>
-                <FaChevronRight />
-              </div>
             </div>
           </>
         );
@@ -927,9 +956,7 @@ export default function SettingsPage() {
               <div className="theme-options">
                 <button
                   type="button"
-                  className={`theme-choice ${
-                    theme === "Light" ? "selected" : ""
-                  }`}
+                  className={`theme-choice ${theme === "Light" ? "selected" : ""}`}
                   onClick={() => setTheme("Light")}
                 >
                   <FaSun />
@@ -939,9 +966,7 @@ export default function SettingsPage() {
 
                 <button
                   type="button"
-                  className={`theme-choice ${
-                    theme === "Dark" ? "selected" : ""
-                  }`}
+                  className={`theme-choice ${theme === "Dark" ? "selected" : ""}`}
                   onClick={() => setTheme("Dark")}
                 >
                   <FaMoon />
@@ -951,9 +976,7 @@ export default function SettingsPage() {
 
                 <button
                   type="button"
-                  className={`theme-choice ${
-                    theme === "System" ? "selected" : ""
-                  }`}
+                  className={`theme-choice ${theme === "System" ? "selected" : ""}`}
                   onClick={() => setTheme("System")}
                 >
                   <FaDesktop />
@@ -961,6 +984,42 @@ export default function SettingsPage() {
                   {theme === "System" && <FaCheck />}
                 </button>
               </div>
+            </div>
+            <div className="settings-card">
+              <h3>Accent Color</h3>
+
+              <div className="accent-options">
+                {ACCENT_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    className={`accent-swatch ${accent === color.value ? "selected" : ""}`}
+                    style={{ background: color.value }}
+                    title={color.name}
+                    aria-label={`${color.name} accent`}
+                    onClick={() => handleAccent(color.value)}
+                  >
+                    {accent === color.value && <FaCheck />}
+                  </button>
+                ))}
+
+                <label className="accent-custom" title="Pick a custom color">
+                  <input
+                    type="color"
+                    value={accent || "#2563eb"}
+                    onChange={(e) => handleAccent(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                className="accent-reset"
+                onClick={() => handleAccent("")}
+                disabled={!accent}
+              >
+                Reset to default
+              </button>
             </div>
           </>
         );
@@ -983,14 +1042,6 @@ export default function SettingsPage() {
                   <h3>Storage Management</h3>
                   <p>View and manage your media and files.</p>
                 </div>
-              </div>
-
-              <div className="setting-option">
-                <div className="setting-option-info">
-                  <h4>Network Usage</h4>
-                  <p>Monitor your data consumption.</p>
-                </div>
-                <FaChevronRight />
               </div>
 
               <SettingToggle
@@ -1033,10 +1084,39 @@ export default function SettingsPage() {
             <div className="settings-card">
               <h3>Accessibility Options</h3>
 
-              <p>
-                Accessibility preferences can be added here, including
-                text size and contrast controls.
-              </p>
+              <div className="profile-input-group">
+                <label htmlFor="ame-text-size">Interface text size</label>
+                <select
+                  id="ame-text-size"
+                  defaultValue={localStorage.getItem("ameTextSize") || "normal"}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    localStorage.setItem("ameTextSize", value);
+                    document.documentElement.dataset.textSize = value;
+                  }}
+                >
+                  <option value="normal">Default</option>
+                  <option value="large">Large</option>
+                  <option value="larger">Extra large</option>
+                </select>
+              </div>
+
+              <div className="profile-input-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    defaultChecked={localStorage.getItem("ameReduceMotion") === "true"}
+                    onChange={(event) => {
+                      localStorage.setItem("ameReduceMotion", String(event.target.checked));
+                      document.documentElement.classList.toggle(
+                        "ame-reduce-motion",
+                        event.target.checked
+                      );
+                    }}
+                  />{" "}
+                  Reduce animations
+                </label>
+              </div>
             </div>
           </>
         );
@@ -1054,18 +1134,17 @@ export default function SettingsPage() {
 
               <div className="setting-option">
                 <div className="setting-option-info">
-                  <h4>Help Center</h4>
-                  <p>Find answers to common questions.</p>
-                </div>
-                <FaChevronRight />
-              </div>
-
-              <div className="setting-option">
-                <div className="setting-option-info">
                   <h4>Contact Support</h4>
                   <p>Get assistance from our support team.</p>
                 </div>
-                <FaEnvelope />
+                <button
+                  type="button"
+                  className="settings-inline-action"
+                  onClick={() => navigate("/Contact")}
+                  aria-label="Open contact page"
+                >
+                  <FaEnvelope />
+                </button>
               </div>
 
               <div className="setting-option">
@@ -1090,18 +1169,15 @@ export default function SettingsPage() {
   return (
     <div className="ame-settings-page">
       <aside className="settings-sidebar">
-        <div className="settings-brand">
-          <img
-            src="/102893.jpg"
-            alt="AME Logo"
-            className="logo-image"
-          />
-
-          <div>
-            <h2>AME</h2>
-            <span>MESSENGER</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="settings-back-arrow"
+          onClick={() => navigate("/Home")}
+          aria-label="Back to Home"
+          title="Back to Home"
+        >
+          <FaArrowLeft />
+        </button>
 
         <div className="settings-title">
           <h2>Settings</h2>
@@ -1124,9 +1200,7 @@ export default function SettingsPage() {
             <button
               type="button"
               key={item.name}
-              className={`settings-nav-item ${
-                activeTab === item.name ? "active" : ""
-              }`}
+              className={`settings-nav-item ${activeTab === item.name ? "active" : ""}`}
               onClick={() => setActiveTab(item.name)}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -1137,13 +1211,14 @@ export default function SettingsPage() {
         </nav>
 
         <div className="settings-sidebar-bottom">
-          <div className="sidebar-user">
+          <button
+            type="button"
+            className="sidebar-user"
+            onClick={() => setActiveTab("Profile")}
+            aria-label="Open profile settings"
+          >
             {profilePhoto ? (
-              <img
-                src={profilePhoto}
-                alt="Profile"
-                className="sidebar-profile-image"
-              />
+              <img src={profilePhoto} alt="Profile" className="sidebar-profile-image" />
             ) : (
               <FaUserCircle />
             )}
@@ -1152,40 +1227,21 @@ export default function SettingsPage() {
               <h4>{profile.name}</h4>
               <p>{profile.role}</p>
             </div>
-          </div>
+          </button>
 
-          <button
-            type="button"
-            className="settings-logout"
-            onClick={handleLogout}
-          >
+          <button type="button" className="settings-logout" onClick={handleLogout}>
             <FaSignOutAlt /> Log Out
           </button>
         </div>
       </aside>
 
       <main className="settings-main">
-        <div className="settings-topbar">
-          <div>
-            <span>AME MESSENGER / SETTINGS</span>
-            <h2>{activeTab}</h2>
-          </div>
-
-          {/* TOPBAR DEFAULT USER ICON */}
-          <div className="settings-top-icon">
-            <FaUserCircle />
-          </div>
-        </div>
-
-        <div className="settings-content">
-          {renderContent()}
-        </div>
+        <div className="settings-content">{renderContent()}</div>
 
         {/* PROFILE PHOTO CROP EDITOR MODAL */}
         {cropModalOpen && cropImage && (
           <div className="crop-modal-overlay">
             <div className="crop-modal-content">
-
               <div className="crop-modal-header">
                 <h3>Adjust Profile Photo</h3>
 
@@ -1200,8 +1256,7 @@ export default function SettingsPage() {
               </div>
 
               <p className="crop-description">
-                Drag, zoom and rotate your photo to get
-                the perfect profile picture.
+                Drag, zoom and rotate your photo to get the perfect profile picture.
               </p>
 
               <div className="cropper-container">
@@ -1231,9 +1286,7 @@ export default function SettingsPage() {
                   max="3"
                   step="0.05"
                   value={zoom}
-                  onChange={(e) =>
-                    setZoom(Number(e.target.value))
-                  }
+                  onChange={(e) => setZoom(Number(e.target.value))}
                 />
 
                 <span>{zoom.toFixed(2)}x</span>
@@ -1243,21 +1296,11 @@ export default function SettingsPage() {
                 <label>Rotate Photo</label>
 
                 <div className="crop-rotate-buttons">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRotation((prev) => prev - 90)
-                    }
-                  >
+                  <button type="button" onClick={() => setRotation((prev) => prev - 90)}>
                     ↶ Rotate Left
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRotation((prev) => prev + 90)
-                    }
-                  >
+                  <button type="button" onClick={() => setRotation((prev) => prev + 90)}>
                     ↷ Rotate Right
                   </button>
                 </div>
@@ -1268,9 +1311,7 @@ export default function SettingsPage() {
                   max="180"
                   step="1"
                   value={rotation}
-                  onChange={(e) =>
-                    setRotation(Number(e.target.value))
-                  }
+                  onChange={(e) => setRotation(Number(e.target.value))}
                 />
 
                 <span>{rotation}°</span>
@@ -1290,16 +1331,11 @@ export default function SettingsPage() {
                   type="button"
                   className="crop-save-btn"
                   onClick={handleSaveCroppedPhoto}
-                  disabled={
-                    !croppedAreaPixels || uploadingPhoto
-                  }
+                  disabled={!croppedAreaPixels || uploadingPhoto}
                 >
-                  {uploadingPhoto
-                    ? "Uploading..."
-                    : "Use Photo"}
+                  {uploadingPhoto ? "Uploading..." : "Use Photo"}
                 </button>
               </div>
-
             </div>
           </div>
         )}

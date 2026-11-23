@@ -4,9 +4,9 @@
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.14), transparent 32%),
-    linear-gradient(135deg, #f8fbff, #edf4ff);
-  color: #071a52;
+    radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--accent-color) 14.0%, transparent), transparent 32%),
+    linear-gradient(135deg, var(--input-background), var(--input-background));
+  color: var(--text-color);
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
 }
 
@@ -34,8 +34,8 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 18px 6%;
-  background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid #e5edff;
+  background: color-mix(in srgb, var(--background-color) 90.0%, transparent);
+  border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(14px);
 }
 
@@ -43,7 +43,7 @@
   display: inline-flex;
   align-items: center;
   gap: 11px;
-  color: #071a52;
+  color: var(--text-color);
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.5px;
@@ -52,12 +52,12 @@
 
 .signup-header p {
   margin: 0;
-  color: #64748b;
+  color: var(--text-light);
   font-size: 13px;
 }
 
 .signup-header p a {
-  color: #2563ff;
+  color: var(--primary-color);
   font-weight: 600;
   text-decoration: none;
 }
@@ -82,16 +82,16 @@
   width: 100%;
   max-width: 440px;
   padding: 36px;
-  background: #ffffff;
-  border: 1px solid #dbe7ff;
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
   border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(7, 26, 82, 0.1);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--secondary-color) 10.0%, transparent);
 }
 
 .signup-form h2 {
   margin: 0 0 8px;
   text-align: center;
-  color: #071a52;
+  color: var(--text-color);
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.6px;
@@ -100,7 +100,7 @@
 .signup-description {
   margin: 0 0 24px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-light);
   font-size: 14px;
 }
 
@@ -109,10 +109,10 @@
 .signup-error {
   margin: 0 0 18px;
   padding: 11px 14px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #fff1f2;
-  color: #b42318;
+  background: var(--input-background);
+  color: var(--error-color);
   font-size: 13px;
   font-weight: 500;
 }
@@ -127,7 +127,7 @@
 }
 
 .form-field label {
-  color: #243b65;
+  color: var(--text-light);
   font-size: 13px;
   font-weight: 700;
 }
@@ -137,10 +137,10 @@
   width: 100%;
   height: 48px;
   padding: 0 14px;
-  border: 1px solid #d6e1f2;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: #ffffff;
-  color: #071a52;
+  background: var(--background-color);
+  color: var(--text-color);
   font-family: inherit;
   font-size: 14px;
   outline: none;
@@ -148,13 +148,13 @@
 }
 
 .form-field input::placeholder {
-  color: #9aa9bf;
+  color: var(--text-light);
 }
 
 .form-field input:focus,
 .form-field select:focus {
-  border-color: #2563ff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 255, 0.14);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 14.0%, transparent);
 }
 
 .form-field select {
@@ -188,28 +188,28 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #64748b;
+  color: var(--text-light);
   font-size: 16px;
   cursor: pointer;
 }
 
 .password-toggle:hover {
-  color: #2563ff;
-  background: #f3f7ff;
+  color: var(--primary-color);
+  background: var(--input-background);
 }
 
 /* CONFIRM PASSWORD STATUS */
 
 .confirm-password-wrapper input {
-  border: 1px solid #d6e1f2;
+  border: 1px solid var(--border-color);
 }
 
 .confirm-password-wrapper.password-matched input {
-  border-color: #16a34a;
+  border-color: var(--success-color);
 }
 
 .confirm-password-wrapper.password-not-matched input {
-  border-color: #dc2626;
+  border-color: var(--error-color);
 }
 
 .password-match-message {
@@ -219,11 +219,11 @@
 }
 
 .password-match-message.match {
-  color: #15803d;
+  color: var(--success-color);
 }
 
 .password-match-message.mismatch {
-  color: #dc2626;
+  color: var(--error-color);
 }
 
 /* BUTTON */
@@ -232,21 +232,21 @@
   width: 100%;
   min-height: 49px;
   margin-top: 8px;
-  border: 1px solid #2563ff;
+  border: 1px solid var(--primary-color);
   border-radius: 10px;
-  background: linear-gradient(135deg, #2563ff, #1237b8);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-color));
+  color: var(--pure-white);
   font-family: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 7px 18px rgba(37, 99, 255, 0.22);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--primary-color) 22.0%, transparent);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .signup-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(37, 99, 255, 0.32);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary-color) 32.0%, transparent);
 }
 
 .signup-button:active {
@@ -263,7 +263,7 @@
 
 .signup-page a:focus-visible,
 .signup-page button:focus-visible {
-  outline: 3px solid rgba(56, 189, 248, 0.65);
+  outline: 3px solid color-mix(in srgb, var(--accent-color) 65.0%, transparent);
   outline-offset: 3px;
 }
 
@@ -288,6 +288,5 @@
     font-size: 24px;
   }
 }
-
 
 

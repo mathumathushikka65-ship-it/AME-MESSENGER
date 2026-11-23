@@ -7,6 +7,7 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const Assignment = require('../models/Assignment');
 const User = require('../models/User');
+const Contact = require('../models/contact');
 const authMiddleware = require('../Middleware/authMiddleware');
 
 router.use(authMiddleware);
@@ -94,6 +95,23 @@ router.post('/:conversationId', async (req, res) => {
             return res.status(404).json({
                 message: 'Conversation not found'
             });
+        }
+
+        // Respect a block applied by either participant in personal chats.
+        if (conversation.type === 'personal') {
+            const otherId = conversation.participants
+                .map((participant) => String(participant?._id || participant))
+                .find((id) => id !== String(req.userId));
+            if (otherId) {
+                const blocked = await Contact.findOne({
+                    isBlocked: true,
+                    $or: [
+                        { owner: req.userId, contactUser: otherId },
+                        { owner: otherId, contactUser: req.userId }
+                    ]
+                }).select('_id');
+                if (blocked) return res.status(403).json({ message: 'This personal chat is unavailable because one participant has blocked the other.' });
+            }
         }
 
         if (type === 'text' && !content?.trim()) {
@@ -660,7 +678,6 @@ router.put('/:conversationId/read', async (req, res) => {
 });
 
 module.exports = router;
-
 
 
 
