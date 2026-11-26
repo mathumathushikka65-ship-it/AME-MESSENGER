@@ -37,6 +37,38 @@ const checkGroupAdmin = async (groupId, userId) => {
 };
 
 
+// Start or resume the signed-in user's direct chat with an active admin.
+router.post('/admin', authMiddleware, async (req, res) => {
+    try {
+        const requester = await User.findById(req.userId).select('role');
+        if (!requester || requester.role === 'admin') {
+            return res.status(403).json({ message: 'This action is available to regular users only.' });
+        }
+
+        const admin = await User.findOne({ role: 'admin', status: 'Active' }).sort({ createdAt: 1 }).select('_id');
+        if (!admin) {
+            return res.status(503).json({ message: 'Admin support is currently unavailable.' });
+        }
+
+        let conversation = await Conversation.findOne({
+            type: 'personal',
+            participants: { $all: [req.userId, admin._id], $size: 2 }
+        });
+
+        if (!conversation) {
+            conversation = await Conversation.create({
+                type: 'personal',
+                participants: [req.userId, admin._id]
+            });
+        }
+
+        return res.status(200).json(conversation);
+    } catch (error) {
+        console.error('Start admin chat error:', error);
+        return res.status(500).json({ message: 'Unable to open Admin chat.' });
+    }
+});
+
 // Create personal chat
 router.post('/personal', authMiddleware, async (req, res) => {
     try {
@@ -413,6 +445,9 @@ router.put('/group/:groupId/details', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+
+
 
 
 

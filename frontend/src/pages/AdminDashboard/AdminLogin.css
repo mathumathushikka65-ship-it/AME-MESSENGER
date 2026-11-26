@@ -499,3 +499,151 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * AME Messenger - Admin Login dark theme overrides
+ * Append this file's contents to the END of AdminLogin.css.
+ * Light theme remains unchanged.
+ */
+
+[data-theme="dark"] .login-page {
+  color-scheme: dark;
+  --login-electric: var(--primary-color);
+  --login-bright: var(--accent-color);
+  --login-dark: var(--text-color);
+  --login-deep: var(--primary-color);
+  --login-light: var(--input-background);
+  --login-border: var(--border-color);
+  --login-muted: var(--text-light);
+  background:
+    radial-gradient(
+      circle at 85% 20%,
+      color-mix(in srgb, var(--primary-color) 16%, transparent),
+      transparent 32%
+    ),
+    var(--page-background, var(--input-background));
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .login-page .login-header {
+  background: color-mix(in srgb, var(--sidebar-background) 94%, transparent);
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .login-page .login-brand,
+[data-theme="dark"] .login-page .login-card h1 {
+  color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .login-page .login-header p,
+[data-theme="dark"] .login-page .login-subtitle,
+[data-theme="dark"] .login-page .login-footer,
+[data-theme="dark"] .login-page .login-bottom-text {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .login-page .login-card {
+  background: var(--card-background, var(--sidebar-background));
+  border-color: var(--border-color);
+  box-shadow: 0 20px 60px color-mix(in srgb, #000 32%, transparent);
+}
+
+[data-theme="dark"] .login-page .illustration-circle {
+  background: color-mix(in srgb, var(--primary-color) 15%, var(--input-background));
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .login-page .chat-symbol {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .login-page .social-button {
+  background: var(--input-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .login-page .google-button:hover {
+  background: var(--border-color);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .login-page .facebook-button,
+[data-theme="dark"] .login-page .sign-in-button {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-color: var(--primary-color);
+  color: var(--pure-white);
+}
+
+[data-theme="dark"] .login-page .facebook-button:hover,
+[data-theme="dark"] .login-page .sign-in-button:hover {
+  filter: brightness(1.08);
+}
+
+[data-theme="dark"] .login-page .login-divider {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .login-page .login-divider::before,
+[data-theme="dark"] .login-page .login-divider::after {
+  background: var(--border-color);
+}
+
+[data-theme="dark"] .login-page .form-group > label {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .login-page .form-group input {
+  background: var(--input-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
+  caret-color: var(--text-color);
+}
+
+[data-theme="dark"] .login-page .form-group input::placeholder {
+  color: var(--text-light);
+  opacity: 1;
+}
+
+[data-theme="dark"] .login-page .form-group input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+
+[data-theme="dark"] .login-page .password-toggle,
+[data-theme="dark"] .login-page a {
+  color: var(--accent-color);
+}
+
+[data-theme="dark"] .login-page .password-toggle:hover,
+[data-theme="dark"] .login-page a:hover {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .login-page .remember-option {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .login-page .remember-option input {
+  accent-color: var(--primary-color);
+}
+
+[data-theme="dark"] .login-page .login-error {
+  background: color-mix(in srgb, var(--error-color) 14%, var(--input-background));
+  color: var(--error-color);
+  border: 1px solid color-mix(in srgb, var(--error-color) 35%, transparent);
+}
+
+[data-theme="dark"] .login-page a:focus-visible,
+[data-theme="dark"] .login-page button:focus-visible,
+[data-theme="dark"] .login-page input:focus-visible {
+  outline-color: var(--accent-color);
+}
+
+[data-theme="dark"] .login-page input:-webkit-autofill,
+[data-theme="dark"] .login-page input:-webkit-autofill:hover,
+[data-theme="dark"] .login-page input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-color);
+  box-shadow: 0 0 0 1000px var(--input-background) inset;
+  caret-color: var(--text-color);
+}

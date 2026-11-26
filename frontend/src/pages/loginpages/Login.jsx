@@ -63,6 +63,7 @@ export default function Login() {
     setLoading(true);
     try {
       const provider = providerName === "google" ? new GoogleAuthProvider() : new FacebookAuthProvider();
+      if (providerName === "facebook") provider.addScope("email");
       provider.setCustomParameters({ prompt: "select_account" });
       const credential = await signInWithPopup(firebaseAuth, provider);
       const idToken = await credential.user.getIdToken();
@@ -92,6 +93,8 @@ export default function Login() {
           New here? <Link to="/Signup">Create an account</Link>
         </p>
       </header>
+
+      <p className="login-support-link"><Link to="/support">Can’t log in? Contact Admin</Link></p>
 
       <main className="login-main">
         <section className="login-card">

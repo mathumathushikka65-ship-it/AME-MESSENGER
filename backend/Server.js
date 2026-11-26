@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const paymentRoutes = require('./Routes/payment');
 const settingsRoutes = require('./Routes/settings');
 
+
 dotenv.config();
 
 const connectDB = require('./config/db');
@@ -25,6 +26,7 @@ const reminderRoutes = require("./Routes/reminderRoutes");
 const documentRoutes = require('./Routes/documents');
 const adminAuthRoutes = require('./Routes/adminAuth');
 const contactRoutes = require('./Routes/contacts');
+const adminSupportRoutes = require('./Routes/adminSupport');
 
 // Models
 const Conversation = require('./models/Conversation');
@@ -84,10 +86,12 @@ const authLimiter = rateLimit({
 
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/support/public', authLimiter);
 app.use('/api/admin-auth/login', authLimiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/api/reminders", reminderRoutes);
+app.use('/api/admin-support', adminSupportRoutes);
 
 // API Routes
 app.use('/api/payment', paymentRoutes);
@@ -102,6 +106,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/admin', require('./Routes/adminRoutes'));
 app.use('/api/admin-auth', adminAuthRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/support', require('./Routes/support'));
+app.use('/api/admin-support', require('./Routes/adminSupport'));
 app.use('/api/contacts', contactRoutes);
 app.use('/upload', require('./Routes/upload'));
 
@@ -330,6 +336,14 @@ const startServer = async () => {
 };
 
 startServer();
+
+
+
+
+
+
+
+
 
 
 

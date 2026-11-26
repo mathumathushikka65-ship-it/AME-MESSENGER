@@ -1,7 +1,9 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaGoogle, FaFacebookF } from "react-icons/fa";
+import { firebaseAuth, isFirebaseConfigured } from "../../firebase";
+import { GoogleAuthProvider, FacebookAuthProvider, signInWithPopup } from "firebase/auth";
 import API_URL from "../../services/api";
 import "./Signup.css";
 
@@ -49,8 +51,8 @@ function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters.");
       return;
     }
 
@@ -90,7 +92,7 @@ function Signup() {
 
       alert("Account created successfully!");
 
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("ameUser", JSON.stringify(data.user));
 
       navigate("/Login");
 
@@ -99,6 +101,36 @@ function Signup() {
         error.message || "Unable to connect to the server."
       );
 
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialSignup = async (providerName) => {
+    setErrorMessage("");
+    if (!isFirebaseConfigured || !firebaseAuth) {
+      setErrorMessage("Social signup is not configured. Please contact Admin or use email signup.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const provider = providerName === "google" ? new GoogleAuthProvider() : new FacebookAuthProvider();
+      if (providerName === "facebook") provider.addScope("email");
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(firebaseAuth, provider);
+      const idToken = await credential.user.getIdToken();
+      const response = await fetch(`${API_URL}/auth/oauth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, role: role || "student" })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Social signup failed.");
+      localStorage.setItem("ameToken", data.token);
+      localStorage.setItem("ameUser", JSON.stringify(data.user));
+      navigate("/Home", { replace: true });
+    } catch (error) {
+      setErrorMessage(error.code === "auth/popup-closed-by-user" ? "Sign-up window was closed." : error.message || "Social signup failed.");
     } finally {
       setLoading(false);
     }
@@ -202,7 +234,7 @@ function Signup() {
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => {
@@ -313,6 +345,11 @@ function Signup() {
 
           </div>
 
+          <div className="signup-social-actions">
+            <button type="button" onClick={() => handleSocialSignup("google")} disabled={loading}><FaGoogle /> Continue with Google</button>
+            <button type="button" onClick={() => handleSocialSignup("facebook")} disabled={loading}><FaFacebookF /> Continue with Facebook</button>
+          </div>
+
           {/* SUBMIT */}
           <button
             type="submit"
@@ -332,6 +369,18 @@ function Signup() {
 }
 
 export default Signup;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

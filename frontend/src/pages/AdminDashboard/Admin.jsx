@@ -8,7 +8,6 @@ import {
   FaFileAlt,
   FaComments,
   FaBell,
-  FaChartBar,
   FaCog,
   FaSignOutAlt,
   FaSearch,
@@ -21,8 +20,12 @@ import {
   FaTrash,
   FaEye,
   FaCalendarAlt,
+  FaLifeRing,
 } from "react-icons/fa";
 import API_URL from "../../services/api";
+import AdminSupportInbox from "./AdminSupportinbox";
+import AdminSettings from "./AdminSettings";
+import AdminUserChats from "./AdminUserChats";
 
 // ---------- API setup ----------
 const API = `${API_URL}/admin`;
@@ -141,8 +144,9 @@ export default function Admin() {
     { name: "Assignments", icon: <FaTasks /> },
     { name: "Documents", icon: <FaFileAlt /> },
     { name: "Messages", icon: <FaComments /> },
+    { name: "User Chats", icon: <FaComments /> },
+    { name: "Support Requests", icon: <FaLifeRing /> },
     { name: "Reminders", icon: <FaBell /> },
-    { name: "Analytics", icon: <FaChartBar /> },
     { name: "Settings", icon: <FaCog /> },
   ];
 
@@ -493,10 +497,12 @@ export default function Admin() {
       case "Messages":
       case "Reminders":
         return renderMonitor(activePage);
-      case "Analytics":
-        return renderPlaceholder("Analytics", "View platform growth and activity reports.", <FaChartBar />);
+      case "User Chats":
+        return <AdminUserChats />;
+      case "Support Requests":
+        return <AdminSupportInbox />;
       case "Settings":
-        return renderPlaceholder("Settings", "Manage administrator preferences and platform settings.", <FaCog />);
+        return <AdminSettings />;
       default:
         return renderDashboard();
     }

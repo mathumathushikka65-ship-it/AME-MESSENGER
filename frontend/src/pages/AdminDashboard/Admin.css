@@ -878,3 +878,251 @@
 .admin-confirm-panel { background: var(--card-background); color: var(--text-color); padding: 24px; border-radius: 12px; width: 360px; max-width: 92vw; display: flex; flex-direction: column; gap: 12px; }
 
 .admin-modal-overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--secondary-color) 50%, transparent); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+
+/*
+ * AME Messenger - Admin Dashboard dark theme overrides
+ * Append this file's contents to the END of Admin.css.
+ * Light theme remains unchanged.
+ */
+
+[data-theme="dark"] .admin-layout {
+  color-scheme: dark;
+  background: var(--page-background, var(--input-background));
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-sidebar {
+  background: var(--sidebar-background, var(--card-background));
+  border-right-color: var(--border-color);
+  box-shadow: 4px 0 24px color-mix(in srgb, #000 24%, transparent);
+}
+
+[data-theme="dark"] .admin-logo {
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-logo h2,
+[data-theme="dark"] .admin-logo span {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-sidebar-label,
+[data-theme="dark"] .admin-profile span {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .admin-menu button {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .admin-menu button:hover,
+[data-theme="dark"] .admin-menu button.active {
+  background: color-mix(in srgb, var(--primary-color) 17%, var(--input-background));
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .admin-profile {
+  border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-avatar,
+[data-theme="dark"] .admin-top-avatar {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-logout {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-logout:hover {
+  background: var(--error-color);
+  color: var(--pure-white);
+}
+
+[data-theme="dark"] .admin-main,
+[data-theme="dark"] .admin-content {
+  background: var(--page-background, var(--input-background));
+}
+
+[data-theme="dark"] .admin-topbar {
+  background: var(--sidebar-background, var(--card-background));
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-topbar h2,
+[data-theme="dark"] .admin-welcome h2,
+[data-theme="dark"] .admin-stat-card h2,
+[data-theme="dark"] .admin-panel-heading h3,
+[data-theme="dark"] .admin-donut h2,
+[data-theme="dark"] .admin-activity-details h4 {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-topbar p,
+[data-theme="dark"] .admin-welcome p,
+[data-theme="dark"] .admin-stat-card p,
+[data-theme="dark"] .admin-panel-heading p,
+[data-theme="dark"] .admin-donut span,
+[data-theme="dark"] .admin-legend p,
+[data-theme="dark"] .admin-legend b,
+[data-theme="dark"] .admin-activity-item > span {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .admin-notification,
+[data-theme="dark"] .admin-menu-toggle {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-date,
+[data-theme="dark"] .admin-stat-card,
+[data-theme="dark"] .admin-panel,
+[data-theme="dark"] .admin-confirm-panel {
+  background: var(--card-background, var(--sidebar-background));
+  color: var(--text-color);
+  border-color: var(--border-color);
+  box-shadow: 0 3px 16px color-mix(in srgb, #000 18%, transparent);
+}
+
+[data-theme="dark"] .admin-stat-icon.blue,
+[data-theme="dark"] .admin-stat-icon.purple,
+[data-theme="dark"] .admin-stat-icon.green,
+[data-theme="dark"] .admin-stat-icon.orange,
+[data-theme="dark"] .admin-stat-icon.pink,
+[data-theme="dark"] .admin-stat-icon.cyan,
+[data-theme="dark"] .admin-stat-icon.indigo,
+[data-theme="dark"] .admin-stat-icon.yellow {
+  background: color-mix(in srgb, var(--primary-color) 14%, var(--input-background));
+}
+
+[data-theme="dark"] .admin-panel-heading select,
+[data-theme="dark"] .admin-search,
+[data-theme="dark"] .admin-search input {
+  background: var(--input-background);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-panel-heading select option {
+  background: var(--card-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-chart {
+  border-bottom-color: var(--border-color);
+  background-image: linear-gradient(
+    to bottom,
+    transparent 24%,
+    color-mix(in srgb, var(--border-color) 75%, transparent) 25%,
+    transparent 25.5%,
+    transparent 49%,
+    color-mix(in srgb, var(--border-color) 75%, transparent) 50%,
+    transparent 50.5%,
+    transparent 74%,
+    color-mix(in srgb, var(--border-color) 75%, transparent) 75%,
+    transparent 75.5%
+  );
+}
+
+[data-theme="dark"] .admin-chart-bar {
+  background: linear-gradient(180deg, var(--accent-color), var(--primary-color));
+}
+
+[data-theme="dark"] .admin-chart-column span,
+[data-theme="dark"] .admin-activity-details p {
+  color: var(--accent-color);
+}
+
+[data-theme="dark"] .admin-donut::before {
+  background: var(--card-background, var(--sidebar-background));
+}
+
+[data-theme="dark"] .admin-activity-item {
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-activity-icon,
+[data-theme="dark"] .admin-panel-heading button,
+[data-theme="dark"] .admin-icon-btn,
+[data-theme="dark"] .admin-icon-btn.delete {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-primary-btn {
+  background: var(--primary-color);
+  color: var(--pure-white);
+}
+
+[data-theme="dark"] .admin-primary-btn:hover {
+  filter: brightness(1.1);
+}
+
+[data-theme="dark"] .admin-table th {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-table td {
+  color: var(--text-light);
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+}
+
+[data-theme="dark"] .admin-status.active {
+  background: color-mix(in srgb, var(--success-color) 15%, var(--input-background));
+  color: var(--success-color);
+}
+
+[data-theme="dark"] .admin-status.pending,
+[data-theme="dark"] .admin-status.inactive {
+  background: color-mix(in srgb, var(--error-color) 13%, var(--input-background));
+  color: var(--error-color);
+}
+
+[data-theme="dark"] .admin-empty-panel,
+[data-theme="dark"] .admin-empty-panel h3,
+[data-theme="dark"] .admin-empty-panel p,
+[data-theme="dark"] .admin-footer {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .admin-empty-icon,
+[data-theme="dark"] .admin-empty-panel .admin-demo-note {
+  background: var(--input-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-footer {
+  border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-inline-alert {
+  background: color-mix(in srgb, var(--error-color) 15%, var(--card-background));
+  color: var(--error-color);
+}
+
+[data-theme="dark"] .admin-modal-overlay {
+  background: color-mix(in srgb, #000 68%, transparent);
+}
+
+[data-theme="dark"] .admin-close-sidebar {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .admin-sidebar-overlay {
+  background: color-mix(in srgb, #000 62%, transparent);
+}
+
+[data-theme="dark"] .admin-layout button:focus-visible,
+[data-theme="dark"] .admin-layout input:focus-visible,
+[data-theme="dark"] .admin-layout select:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}

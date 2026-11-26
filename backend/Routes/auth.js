@@ -136,6 +136,18 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// Return the authenticated account profile (also used by Admin Settings).
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('-password -passwordResetToken -passwordResetExpires');
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        return res.json({ user });
+    } catch (error) {
+        console.error('Get current user error:', error.message);
+        return res.status(500).json({ message: 'Unable to load account profile.' });
+    }
+});
+
 // UPDATE USER PROFILE
 router.put('/profile', authMiddleware, async (req, res) => {
     try {
@@ -203,6 +215,9 @@ router.put('/profile', authMiddleware, async (req, res) => {
 router.post('/oauth', async (req, res) => {
     try {
         const { idToken } = req.body;
+        const requestedRole = req.body.role;
+        const allowedSocialRoles = ['student', 'teacher', 'university', 'course-center', 'other'];
+        const socialRole = allowedSocialRoles.includes(requestedRole) ? requestedRole : 'student';
         const apiKey = process.env.FIREBASE_WEB_API_KEY;
 
         if (!idToken || !apiKey) {
@@ -247,7 +262,7 @@ router.post('/oauth', async (req, res) => {
             user = await User.create({
                 username,
                 email,
-                role: 'student',
+                role: socialRole,
                 password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
                 profilePhoto: identity.photoUrl || ''
             });

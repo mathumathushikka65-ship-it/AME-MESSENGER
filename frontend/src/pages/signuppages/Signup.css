@@ -290,3 +290,7 @@
 }
 
 
+
+.signup-social-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.signup-social-actions button{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 9px;border:1px solid #d9e0e8;border-radius:10px;background:#fff;color:#263548;font-weight:600;cursor:pointer}.signup-social-actions button:disabled{opacity:.6}.signup-support-link{text-align:center;margin:8px auto 14px}.signup-support-link a,.login-support-link a{color:#176b54;font-weight:600;text-decoration:none}.login-support-link{text-align:center;margin:4px 0 14px}
+
+

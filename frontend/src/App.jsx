@@ -15,6 +15,7 @@ import Reminder from "./pages/Reminder/Reminder";
 import Admin from "./pages/AdminDashboard/Admin";
 import AdminLogin from "./pages/AdminDashboard/AdminLogin";
 import Contact from "./pages/contectpage/Contact";
+import PublicSupport from "./pages/contectpage/PublicSupport";
 import Document from "./pages/DocumentCreation/Documentcreation";
 import Calendar from "./pages/calander/Calander";
 import ForgotPassword from "./pages/loginpages/ForgotPassword";
@@ -39,6 +40,7 @@ function App() {
 {/* Idhu logged-in user-um use pannalam, so PublicRoute-ku veliya */}
 <Route path="/forgot-password" element={<ForgotPassword />} />
 <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/support" element={<PublicSupport />} />
 <Route path="/ame-control-x7k2" element={<AdminLogin />} />
 
           {/* Normal User Protected Pages */}

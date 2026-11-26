@@ -1651,3 +1651,4 @@
 .ame-scan-page button { border:0; background:var(--input-background); color:var(--error-color); border-radius:7px; padding:6px; }
 .ame-scan-modal footer { justify-content:flex-end; } .ame-scan-modal footer button { display:flex; gap:8px; align-items:center; border:0; border-radius:9px; padding:10px 14px; background:var(--primary-color); color:var(--pure-white); font-weight:700; }
 .ame-scan-modal footer button:disabled { opacity:.5; cursor:not-allowed; }
+.admin-chat-shortcut{width:auto!important;min-width:52px;padding:0 9px!important;font-size:11px;font-weight:700;letter-spacing:.2px}
